@@ -1,0 +1,9 @@
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>/dev/null</title>
+    <link>http://elder-george.github.io/</link>
+    <description>Recent content on /dev/null</description>
+    <generator>Hugo -- gohugo.io</generator>
+    <language>en-us</language><atom:link href="http://elder-george.github.io/index.xml" rel="self" type="application/rss+xml" />
+  </channel>
+</rss>
