@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>C&#43;&#43; on /dev/null</title>
+    <link>http://elder-george.github.io/categories/c&#43;&#43;/</link>
+    <description>Recent content in C&#43;&#43; on /dev/null</description>
+    <generator>Hugo -- gohugo.io</generator>
+    <language>en-us</language>
+    <lastBuildDate>Sat, 23 Oct 2021 22:45:14 -0700</lastBuildDate><atom:link href="http://elder-george.github.io/categories/c++/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>Hashtables &amp; C&#43;&#43; - part 2</title>
+      <link>http://elder-george.github.io/post/hashtables-2/</link>
+      <pubDate>Sat, 23 Oct 2021 22:45:14 -0700</pubDate>
+      
+      <guid>http://elder-george.github.io/post/hashtables-2/</guid>
+      <description>(this is a continuation of the previous post)
+After playing with performance of the standard (and semi-standard) hashtables, I wondered, if it&amp;rsquo;s hard enough to do my own hashmap to work better than the std::unordered_map. Algorithms and data structures aren&amp;rsquo;t my strongest skills, so I wondered what can I learn here.
+(note: we&amp;rsquo;re not bound by STL interfaces here, we&amp;rsquo;re free to do our own; I&amp;rsquo;m going to keep calling the main method try_emplace, but that&amp;rsquo;s all)</description>
+    </item>
+    
+  </channel>
+</rss>

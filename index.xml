@@ -4,6 +4,499 @@
     <link>http://elder-george.github.io/</link>
     <description>Recent content on /dev/null</description>
     <generator>Hugo -- gohugo.io</generator>
-    <language>en-us</language><atom:link href="http://elder-george.github.io/index.xml" rel="self" type="application/rss+xml" />
+    <language>en-us</language>
+    <lastBuildDate>Sat, 23 Oct 2021 22:45:14 -0700</lastBuildDate><atom:link href="http://elder-george.github.io/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+    <title>Hashtables &amp; C&#43;&#43; - part 2</title>
+    <link>http://elder-george.github.io/post/hashtables-2/</link>
+    <pubDate>Sat, 23 Oct 2021 22:45:14 -0700</pubDate>
+    
+    <guid>http://elder-george.github.io/post/hashtables-2/</guid>
+    <description>
+        &lt;p&gt;(this is a continuation of &lt;a href=&#34;http://elder-george.github.io/post/hashtables/&#34;&gt;the previous post&lt;/a&gt;)&lt;/p&gt;
+&lt;p&gt;After playing with performance of the standard (and semi-standard) hashtables, I wondered, if it&amp;rsquo;s hard enough to do my own hashmap to work better than the &lt;code&gt;std::unordered_map&lt;/code&gt;. Algorithms and data structures aren&amp;rsquo;t my strongest skills, so I wondered what can I learn here.&lt;/p&gt;
+&lt;p&gt;&lt;em&gt;(note: we&amp;rsquo;re not bound by STL interfaces here, we&amp;rsquo;re free to do our own; I&amp;rsquo;m going to keep calling the main method &lt;code&gt;try_emplace&lt;/code&gt;, but that&amp;rsquo;s all)&lt;/em&gt;&lt;/p&gt;
+&lt;h1 id=&#34;first-version&#34;&gt;
+    &lt;a href=&#34;#first-version&#34; class=&#34;anchor&#34;&gt;
+        &lt;svg class=&#34;icon&#34; aria-hidden=&#34;true&#34; focusable=&#34;false&#34; height=&#34;16&#34; version=&#34;1.1&#34; viewBox=&#34;0 0 16 16&#34; width=&#34;16&#34;&gt;
+            &lt;path fill-rule=&#34;evenodd&#34;
+                d=&#34;M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z&#34;&gt;
+            &lt;/path&gt;
+        &lt;/svg&gt;
+    &lt;/a&gt;
+    First version
+&lt;/h1&gt;
+&lt;p&gt;&lt;a href=&#34;https://gist.github.com/elder-george/c9689ed15fa31eb84e782435179b3cd1&#34;&gt;My first attempt (written in 15 min or so) looked like this&lt;/a&gt;, and is &lt;em&gt;bad&lt;/em&gt; but still ran at ~14s (or ~7s of &amp;ldquo;useful&amp;rdquo; work) on the same ~600M dataset, similar to more or less optimized version using &lt;code&gt;std::unordered_map&lt;/code&gt; from previous post. Huh, not bad.&lt;/p&gt;
+&lt;p&gt;what&amp;rsquo;s good here:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;we only compute hash once for each item;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&amp;hellip; that&amp;rsquo;s all? &amp;hellip;&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;What&amp;rsquo;s bad here?&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;the underlying &lt;code&gt;_store&lt;/code&gt; size is always a power of 2&lt;sup id=&#34;fnref:1&#34;&gt;&lt;a href=&#34;#fn:1&#34; class=&#34;footnote-ref&#34; role=&#34;doc-noteref&#34;&gt;1&lt;/a&gt;&lt;/sup&gt;, so we can use a trick for computing remainder - &lt;code&gt;full_h &amp;amp; (_store.size() - 1)&lt;/code&gt;. That alone saves us ~0.5s of ttal execution.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;we use recursion on our second attempt to put the value. We can replace it with iteration; that saves ~0.1s too.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;moreover, we can move the resizing loop out of main one, since it&amp;rsquo;s only run at the end anyway. It&amp;rsquo;s not a big deal from performance standpoint but it&amp;rsquo;ll make code cleaner;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;we do string comparison at line 19, but we could compare hashes first and only compare strings when hashes match. That is, instead of&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-c++&#34; data-lang=&#34;c++&#34;&gt;    &lt;span style=&#34;color:#66d9ef&#34;&gt;else&lt;/span&gt; &lt;span style=&#34;color:#a6e22e&#34;&gt;if&lt;/span&gt; (std&lt;span style=&#34;color:#f92672&#34;&gt;::&lt;/span&gt;get&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&lt;/span&gt;std&lt;span style=&#34;color:#f92672&#34;&gt;::&lt;/span&gt;string&lt;span style=&#34;color:#f92672&#34;&gt;&amp;gt;&lt;/span&gt;(&lt;span style=&#34;color:#f92672&#34;&gt;*&lt;/span&gt;it) &lt;span style=&#34;color:#f92672&#34;&gt;==&lt;/span&gt; s) {
+        &lt;span style=&#34;color:#66d9ef&#34;&gt;return&lt;/span&gt; {it, false};
+    }
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;we could do&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-c++&#34; data-lang=&#34;c++&#34;&gt;    &lt;span style=&#34;color:#66d9ef&#34;&gt;else&lt;/span&gt; &lt;span style=&#34;color:#a6e22e&#34;&gt;if&lt;/span&gt; (std&lt;span style=&#34;color:#f92672&#34;&gt;::&lt;/span&gt;get&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&lt;/span&gt;size_t&lt;span style=&#34;color:#f92672&#34;&gt;&amp;gt;&lt;/span&gt;(&lt;span style=&#34;color:#f92672&#34;&gt;*&lt;/span&gt;it) &lt;span style=&#34;color:#f92672&#34;&gt;==&lt;/span&gt; full_h &lt;span style=&#34;color:#f92672&#34;&gt;&amp;amp;&amp;amp;&lt;/span&gt; std&lt;span style=&#34;color:#f92672&#34;&gt;::&lt;/span&gt;get&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&lt;/span&gt;std&lt;span style=&#34;color:#f92672&#34;&gt;::&lt;/span&gt;string&lt;span style=&#34;color:#f92672&#34;&gt;&amp;gt;&lt;/span&gt;(&lt;span style=&#34;color:#f92672&#34;&gt;*&lt;/span&gt;it) &lt;span style=&#34;color:#f92672&#34;&gt;==&lt;/span&gt; s) {
+        &lt;span style=&#34;color:#66d9ef&#34;&gt;return&lt;/span&gt; {it, false};
+    }
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;With this particular dataset it actually makes execution slightly worse because short strings dominate here. Still, a good practice.&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;we&amp;rsquo;re using &lt;code&gt;std::tuple&lt;/code&gt; to store entries. It&amp;rsquo;s not necessarily a good thing, because fields may be unaligned. Explicitly define structure &lt;em&gt;might&lt;/em&gt; be slightly better (and definitely more readable).&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;when resizing, we move entries even if their are empty. We can skip them.&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h2 id=&#34;lets-fix-those&#34;&gt;
+    &lt;a href=&#34;#lets-fix-those&#34; class=&#34;anchor&#34;&gt;
+        &lt;svg class=&#34;icon&#34; aria-hidden=&#34;true&#34; focusable=&#34;false&#34; height=&#34;16&#34; version=&#34;1.1&#34; viewBox=&#34;0 0 16 16&#34; width=&#34;16&#34;&gt;
+            &lt;path fill-rule=&#34;evenodd&#34;
+                d=&#34;M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z&#34;&gt;
+            &lt;/path&gt;
+        &lt;/svg&gt;
+    &lt;/a&gt;
+    Let&amp;#39;s fix those!
+&lt;/h2&gt;
+&lt;p&gt;In process, let&amp;rsquo;s also clean code a bit, for example, replace loop over iterators with good old loop over integers.&lt;/p&gt;
+&lt;p&gt;Here&amp;rsquo;s what I got:&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-c++&#34; data-lang=&#34;c++&#34;&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;struct&lt;/span&gt; &lt;span style=&#34;color:#a6e22e&#34;&gt;alignas&lt;/span&gt;(&lt;span style=&#34;color:#ae81ff&#34;&gt;16&lt;/span&gt;) Item {
+    size_t full_hash;
+    std&lt;span style=&#34;color:#f92672&#34;&gt;::&lt;/span&gt;string key;
+    &lt;span style=&#34;color:#66d9ef&#34;&gt;uint32_t&lt;/span&gt; value;
+};
+
+&lt;span style=&#34;color:#66d9ef&#34;&gt;struct&lt;/span&gt; &lt;span style=&#34;color:#a6e22e&#34;&gt;oa_map&lt;/span&gt; {
+    &lt;span style=&#34;color:#66d9ef&#34;&gt;using&lt;/span&gt; Store &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; std&lt;span style=&#34;color:#f92672&#34;&gt;::&lt;/span&gt;vector&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&lt;/span&gt;Item&lt;span style=&#34;color:#f92672&#34;&gt;&amp;gt;&lt;/span&gt;;
+    &lt;span style=&#34;color:#66d9ef&#34;&gt;using&lt;/span&gt; iterator &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; Store&lt;span style=&#34;color:#f92672&#34;&gt;::&lt;/span&gt;iterator;
+    Store _store{&lt;span style=&#34;color:#ae81ff&#34;&gt;1024&lt;/span&gt;};
+
+    std&lt;span style=&#34;color:#f92672&#34;&gt;::&lt;/span&gt;pair&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&lt;/span&gt;iterator, &lt;span style=&#34;color:#66d9ef&#34;&gt;bool&lt;/span&gt;&lt;span style=&#34;color:#f92672&#34;&gt;&amp;gt;&lt;/span&gt; try_emplace(std&lt;span style=&#34;color:#f92672&#34;&gt;::&lt;/span&gt;string&lt;span style=&#34;color:#f92672&#34;&gt;&amp;amp;&amp;amp;&lt;/span&gt; s, &lt;span style=&#34;color:#66d9ef&#34;&gt;uint32_t&lt;/span&gt; v) {
+        &lt;span style=&#34;color:#66d9ef&#34;&gt;auto&lt;/span&gt; full_h &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; std&lt;span style=&#34;color:#f92672&#34;&gt;::&lt;/span&gt;hash&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&lt;/span&gt;std&lt;span style=&#34;color:#f92672&#34;&gt;::&lt;/span&gt;string&lt;span style=&#34;color:#f92672&#34;&gt;&amp;gt;&lt;/span&gt;{}(s);
+        &lt;span style=&#34;color:#66d9ef&#34;&gt;return&lt;/span&gt; &lt;span style=&#34;color:#a6e22e&#34;&gt;try_emplace&lt;/span&gt;(full_h, std&lt;span style=&#34;color:#f92672&#34;&gt;::&lt;/span&gt;move(s), v);
+    }
+
+    size_t &lt;span style=&#34;color:#a6e22e&#34;&gt;truncate&lt;/span&gt;(size_t v) {
+        &lt;span style=&#34;color:#66d9ef&#34;&gt;return&lt;/span&gt; v &lt;span style=&#34;color:#f92672&#34;&gt;&amp;amp;&lt;/span&gt; (_store.size() &lt;span style=&#34;color:#f92672&#34;&gt;-&lt;/span&gt; &lt;span style=&#34;color:#ae81ff&#34;&gt;1&lt;/span&gt;);
+    }
+
+    std&lt;span style=&#34;color:#f92672&#34;&gt;::&lt;/span&gt;pair&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&lt;/span&gt;iterator, &lt;span style=&#34;color:#66d9ef&#34;&gt;bool&lt;/span&gt;&lt;span style=&#34;color:#f92672&#34;&gt;&amp;gt;&lt;/span&gt; try_emplace(size_t full_h, std&lt;span style=&#34;color:#f92672&#34;&gt;::&lt;/span&gt;string&lt;span style=&#34;color:#f92672&#34;&gt;&amp;amp;&amp;amp;&lt;/span&gt; s, &lt;span style=&#34;color:#66d9ef&#34;&gt;uint32_t&lt;/span&gt; v) {
+        &lt;span style=&#34;color:#66d9ef&#34;&gt;while&lt;/span&gt;(true) {
+            &lt;span style=&#34;color:#66d9ef&#34;&gt;auto&lt;/span&gt; h &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; truncate(full_h);
+            &lt;span style=&#34;color:#66d9ef&#34;&gt;for&lt;/span&gt;(&lt;span style=&#34;color:#66d9ef&#34;&gt;auto&lt;/span&gt; i &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; h; i &lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&lt;/span&gt; _store.size(); &lt;span style=&#34;color:#f92672&#34;&gt;++&lt;/span&gt;i) {
+                &lt;span style=&#34;color:#66d9ef&#34;&gt;auto&lt;/span&gt;&lt;span style=&#34;color:#f92672&#34;&gt;&amp;amp;&lt;/span&gt; entry &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; _store[i];
+                &lt;span style=&#34;color:#66d9ef&#34;&gt;if&lt;/span&gt; (entry.key.empty()) {
+                    entry &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; {full_h, s, v};
+                    &lt;span style=&#34;color:#66d9ef&#34;&gt;return&lt;/span&gt; {_store.begin() &lt;span style=&#34;color:#f92672&#34;&gt;+&lt;/span&gt; i, true};
+                }
+                &lt;span style=&#34;color:#66d9ef&#34;&gt;else&lt;/span&gt; &lt;span style=&#34;color:#a6e22e&#34;&gt;if&lt;/span&gt; (entry.full_hash &lt;span style=&#34;color:#f92672&#34;&gt;==&lt;/span&gt; full_h &lt;span style=&#34;color:#f92672&#34;&gt;&amp;amp;&amp;amp;&lt;/span&gt; entry.key &lt;span style=&#34;color:#f92672&#34;&gt;==&lt;/span&gt; s) {
+                    &lt;span style=&#34;color:#66d9ef&#34;&gt;return&lt;/span&gt; {_store.begin() &lt;span style=&#34;color:#f92672&#34;&gt;+&lt;/span&gt; i, false};
+                }
+            }
+            &lt;span style=&#34;color:#75715e&#34;&gt;// if we got here, there were too many collisions
+&lt;/span&gt;&lt;span style=&#34;color:#75715e&#34;&gt;&lt;/span&gt;            expand();
+            &lt;span style=&#34;color:#75715e&#34;&gt;// this time it&amp;#39;ll succeed, right? RIGHT?
+&lt;/span&gt;&lt;span style=&#34;color:#75715e&#34;&gt;&lt;/span&gt;        }
+    }
+
+    &lt;span style=&#34;color:#66d9ef&#34;&gt;void&lt;/span&gt; &lt;span style=&#34;color:#a6e22e&#34;&gt;expand&lt;/span&gt;() {
+        &lt;span style=&#34;color:#75715e&#34;&gt;// hackish resize
+&lt;/span&gt;&lt;span style=&#34;color:#75715e&#34;&gt;&lt;/span&gt;        &lt;span style=&#34;color:#66d9ef&#34;&gt;auto&lt;/span&gt; old_size &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; _store.size();
+        _store.resize(old_size &lt;span style=&#34;color:#f92672&#34;&gt;*&lt;/span&gt; &lt;span style=&#34;color:#ae81ff&#34;&gt;2&lt;/span&gt;);
+        &lt;span style=&#34;color:#75715e&#34;&gt;// re-place existing values
+&lt;/span&gt;&lt;span style=&#34;color:#75715e&#34;&gt;&lt;/span&gt;        &lt;span style=&#34;color:#66d9ef&#34;&gt;for&lt;/span&gt; (&lt;span style=&#34;color:#66d9ef&#34;&gt;auto&lt;/span&gt; i &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; &lt;span style=&#34;color:#ae81ff&#34;&gt;0&lt;/span&gt;; i  &lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&lt;/span&gt; old_size; &lt;span style=&#34;color:#f92672&#34;&gt;++&lt;/span&gt;i) {
+            &lt;span style=&#34;color:#66d9ef&#34;&gt;auto&lt;/span&gt; item &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; std&lt;span style=&#34;color:#f92672&#34;&gt;::&lt;/span&gt;move(_store[i]);
+            &lt;span style=&#34;color:#66d9ef&#34;&gt;if&lt;/span&gt; (&lt;span style=&#34;color:#f92672&#34;&gt;!&lt;/span&gt;item.key.empty()) {
+                try_emplace(item.full_hash, std&lt;span style=&#34;color:#f92672&#34;&gt;::&lt;/span&gt;move(item.key), item.value);
+            }
+        }
+    }
+};
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;This results in ~13.5s of execution. Nice.&lt;/p&gt;
+&lt;h1 id=&#34;but&#34;&gt;
+    &lt;a href=&#34;#but&#34; class=&#34;anchor&#34;&gt;
+        &lt;svg class=&#34;icon&#34; aria-hidden=&#34;true&#34; focusable=&#34;false&#34; height=&#34;16&#34; version=&#34;1.1&#34; viewBox=&#34;0 0 16 16&#34; width=&#34;16&#34;&gt;
+            &lt;path fill-rule=&#34;evenodd&#34;
+                d=&#34;M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z&#34;&gt;
+            &lt;/path&gt;
+        &lt;/svg&gt;
+    &lt;/a&gt;
+    BUT…
+&lt;/h1&gt;
+&lt;p&gt;…but I omitted one more issue with this code, the worst of them all:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;it only probes items &lt;em&gt;after&lt;/em&gt; the original insertion point. Which means that if the insertion point (i.e. the hash modulo size) is close to the end, we&amp;rsquo;ll get resizing the &lt;code&gt;_store&lt;/code&gt; repeatedly. Instead, we should &amp;ldquo;wrap&amp;rdquo; the iterator so that it starts from the beginning after hitting &lt;code&gt;.end()&lt;/code&gt;.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;Let&amp;rsquo;s fix that, too!&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-c++&#34; data-lang=&#34;c++&#34;&gt;    ...
+    &lt;span style=&#34;color:#66d9ef&#34;&gt;static&lt;/span&gt; &lt;span style=&#34;color:#66d9ef&#34;&gt;constexpr&lt;/span&gt; size_t collision_threshold &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; &lt;span style=&#34;color:#ae81ff&#34;&gt;42&lt;/span&gt;;
+    ...
+    std&lt;span style=&#34;color:#f92672&#34;&gt;::&lt;/span&gt;pair&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&lt;/span&gt;iterator, &lt;span style=&#34;color:#66d9ef&#34;&gt;bool&lt;/span&gt;&lt;span style=&#34;color:#f92672&#34;&gt;&amp;gt;&lt;/span&gt; try_emplace(size_t full_h, std&lt;span style=&#34;color:#f92672&#34;&gt;::&lt;/span&gt;string&lt;span style=&#34;color:#f92672&#34;&gt;&amp;amp;&amp;amp;&lt;/span&gt; s, &lt;span style=&#34;color:#66d9ef&#34;&gt;uint32_t&lt;/span&gt; v) {
+        &lt;span style=&#34;color:#66d9ef&#34;&gt;while&lt;/span&gt;(true) {
+            &lt;span style=&#34;color:#66d9ef&#34;&gt;auto&lt;/span&gt; h &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; truncate(full_h);
+            &lt;span style=&#34;color:#66d9ef&#34;&gt;for&lt;/span&gt;(&lt;span style=&#34;color:#66d9ef&#34;&gt;auto&lt;/span&gt; i &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; &lt;span style=&#34;color:#ae81ff&#34;&gt;0&lt;/span&gt;; i &lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&lt;/span&gt; collision_threshold; &lt;span style=&#34;color:#f92672&#34;&gt;++&lt;/span&gt;i) {
+                &lt;span style=&#34;color:#66d9ef&#34;&gt;auto&lt;/span&gt; j &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; truncate(i &lt;span style=&#34;color:#f92672&#34;&gt;+&lt;/span&gt; h);
+
+                &lt;span style=&#34;color:#66d9ef&#34;&gt;auto&lt;/span&gt;&lt;span style=&#34;color:#f92672&#34;&gt;&amp;amp;&lt;/span&gt; entry &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; _store[j];
+                &lt;span style=&#34;color:#66d9ef&#34;&gt;if&lt;/span&gt; (entry.full_hash &lt;span style=&#34;color:#f92672&#34;&gt;==&lt;/span&gt; empty_value) {
+                    entry &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; {full_h, std&lt;span style=&#34;color:#f92672&#34;&gt;::&lt;/span&gt;move(s), v};
+                    &lt;span style=&#34;color:#66d9ef&#34;&gt;return&lt;/span&gt; {_store.data()&lt;span style=&#34;color:#f92672&#34;&gt;+&lt;/span&gt;j, true};
+                }
+                &lt;span style=&#34;color:#66d9ef&#34;&gt;else&lt;/span&gt; &lt;span style=&#34;color:#a6e22e&#34;&gt;if&lt;/span&gt; (entry.full_hash &lt;span style=&#34;color:#f92672&#34;&gt;==&lt;/span&gt; full_h &lt;span style=&#34;color:#f92672&#34;&gt;&amp;amp;&amp;amp;&lt;/span&gt; entry.key &lt;span style=&#34;color:#f92672&#34;&gt;==&lt;/span&gt; s) {
+                    &lt;span style=&#34;color:#66d9ef&#34;&gt;return&lt;/span&gt; {_store.data()&lt;span style=&#34;color:#f92672&#34;&gt;+&lt;/span&gt;j, false};
+                }
+            }
+            &lt;span style=&#34;color:#75715e&#34;&gt;// if we got here, there were too many collisions
+&lt;/span&gt;&lt;span style=&#34;color:#75715e&#34;&gt;&lt;/span&gt;            expand();
+        }
+    }
+    ...
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;This gives us average execution time of 12.85s, i.e. we just saved ~0.65s.&lt;/p&gt;
+&lt;h1 id=&#34;do-not-pay-per-view&#34;&gt;
+    &lt;a href=&#34;#do-not-pay-per-view&#34; class=&#34;anchor&#34;&gt;
+        &lt;svg class=&#34;icon&#34; aria-hidden=&#34;true&#34; focusable=&#34;false&#34; height=&#34;16&#34; version=&#34;1.1&#34; viewBox=&#34;0 0 16 16&#34; width=&#34;16&#34;&gt;
+            &lt;path fill-rule=&#34;evenodd&#34;
+                d=&#34;M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z&#34;&gt;
+            &lt;/path&gt;
+        &lt;/svg&gt;
+    &lt;/a&gt;
+    Do not pay per view
+&lt;/h1&gt;
+&lt;p&gt;Now, to think of it, wwe&amp;rsquo;re creating a &lt;code&gt;std::string&lt;/code&gt; for each line in the input file, but we&amp;rsquo;re going to discard it if it had been interned previously.&lt;/p&gt;
+&lt;p&gt;This &lt;em&gt;was&lt;/em&gt; necessary because that&amp;rsquo;s what &lt;code&gt;std::unordered_map&lt;/code&gt; and &lt;code&gt;abseil::flat_hash_map&lt;/code&gt; do, but in our specific program we don&amp;rsquo;t have too.&lt;/p&gt;
+&lt;p&gt;Let&amp;rsquo;s only create &lt;code&gt;std::string&lt;/code&gt; on actual insertion, and use &lt;code&gt;std::string_view&lt;/code&gt; in all other contexts:&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-c++&#34; data-lang=&#34;c++&#34;&gt;    std&lt;span style=&#34;color:#f92672&#34;&gt;::&lt;/span&gt;pair&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&lt;/span&gt;iterator, &lt;span style=&#34;color:#66d9ef&#34;&gt;bool&lt;/span&gt;&lt;span style=&#34;color:#f92672&#34;&gt;&amp;gt;&lt;/span&gt; try_emplace(std&lt;span style=&#34;color:#f92672&#34;&gt;::&lt;/span&gt;string_view&lt;span style=&#34;color:#f92672&#34;&gt;&amp;amp;&amp;amp;&lt;/span&gt; s, &lt;span style=&#34;color:#66d9ef&#34;&gt;uint32_t&lt;/span&gt; v) {
+        &lt;span style=&#34;color:#66d9ef&#34;&gt;auto&lt;/span&gt; full_h &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; std&lt;span style=&#34;color:#f92672&#34;&gt;::&lt;/span&gt;hash&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&lt;/span&gt;std&lt;span style=&#34;color:#f92672&#34;&gt;::&lt;/span&gt;string_view&lt;span style=&#34;color:#f92672&#34;&gt;&amp;gt;&lt;/span&gt;{}(s);
+        &lt;span style=&#34;color:#66d9ef&#34;&gt;return&lt;/span&gt; &lt;span style=&#34;color:#a6e22e&#34;&gt;try_emplace&lt;/span&gt;(full_h, std&lt;span style=&#34;color:#f92672&#34;&gt;::&lt;/span&gt;move(s), v);
+    }
+
+    std&lt;span style=&#34;color:#f92672&#34;&gt;::&lt;/span&gt;pair&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&lt;/span&gt;iterator, &lt;span style=&#34;color:#66d9ef&#34;&gt;bool&lt;/span&gt;&lt;span style=&#34;color:#f92672&#34;&gt;&amp;gt;&lt;/span&gt; try_emplace(size_t full_h, std&lt;span style=&#34;color:#f92672&#34;&gt;::&lt;/span&gt;string_view&lt;span style=&#34;color:#f92672&#34;&gt;&amp;amp;&amp;amp;&lt;/span&gt; s, &lt;span style=&#34;color:#66d9ef&#34;&gt;uint32_t&lt;/span&gt; v) {
+        ...
+                &lt;span style=&#34;color:#66d9ef&#34;&gt;if&lt;/span&gt; (entry.key.empty()) {
+                    entry &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; {full_h, std&lt;span style=&#34;color:#f92672&#34;&gt;::&lt;/span&gt;string{s}, v};
+                    &lt;span style=&#34;color:#66d9ef&#34;&gt;return&lt;/span&gt; {_store.begin() &lt;span style=&#34;color:#f92672&#34;&gt;+&lt;/span&gt; j, true};
+                }
+        ...          
+    }
+    ...
+
+&lt;span style=&#34;color:#66d9ef&#34;&gt;uint32_t&lt;/span&gt; add(Intern_pool&lt;span style=&#34;color:#f92672&#34;&gt;*&lt;/span&gt; pool, std&lt;span style=&#34;color:#f92672&#34;&gt;::&lt;/span&gt;string_view&lt;span style=&#34;color:#f92672&#34;&gt;&amp;amp;&amp;amp;&lt;/span&gt; s) {
+    ... &lt;span style=&#34;color:#75715e&#34;&gt;// the same
+&lt;/span&gt;&lt;span style=&#34;color:#75715e&#34;&gt;&lt;/span&gt;}
+...
+&lt;span style=&#34;color:#66d9ef&#34;&gt;int&lt;/span&gt; main(&lt;span style=&#34;color:#66d9ef&#34;&gt;int&lt;/span&gt; argc, &lt;span style=&#34;color:#66d9ef&#34;&gt;char&lt;/span&gt;&lt;span style=&#34;color:#f92672&#34;&gt;**&lt;/span&gt; argv) {
+    ...
+        &lt;span style=&#34;color:#66d9ef&#34;&gt;char&lt;/span&gt; buffer[&lt;span style=&#34;color:#ae81ff&#34;&gt;256&lt;/span&gt;];
+        &lt;span style=&#34;color:#66d9ef&#34;&gt;while&lt;/span&gt; (fgets(buffer, &lt;span style=&#34;color:#ae81ff&#34;&gt;256&lt;/span&gt;, file)) &lt;span style=&#34;color:#75715e&#34;&gt;// one identifier per line
+&lt;/span&gt;&lt;span style=&#34;color:#75715e&#34;&gt;&lt;/span&gt;        {
+            &lt;span style=&#34;color:#66d9ef&#34;&gt;auto&lt;/span&gt; len &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; strlen(buffer);
+            buffer[len&lt;span style=&#34;color:#f92672&#34;&gt;-&lt;/span&gt;&lt;span style=&#34;color:#ae81ff&#34;&gt;1&lt;/span&gt;] &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; &lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#39;\0&amp;#39;&lt;/span&gt;; &lt;span style=&#34;color:#75715e&#34;&gt;// removes the `\n` from fgets()
+&lt;/span&gt;&lt;span style=&#34;color:#75715e&#34;&gt;&lt;/span&gt;            add(&lt;span style=&#34;color:#f92672&#34;&gt;&amp;amp;&lt;/span&gt;intern_pool, std&lt;span style=&#34;color:#f92672&#34;&gt;::&lt;/span&gt;move(std&lt;span style=&#34;color:#f92672&#34;&gt;::&lt;/span&gt;string_view(buffer, len)));
+        }
+    ...
+}
+
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;This one gives us 11.76s (so, ~4.7s of &amp;ldquo;useful&amp;rdquo; work). So, we have beaten &lt;code&gt;abseil::flat_hash_map&lt;/code&gt; (by cheating and making a better signature, as well as not implementing 90% of what it can do).&lt;/p&gt;
+&lt;p&gt;Could we avoid that? to a degree. We could create a shared string in &lt;code&gt;main&lt;/code&gt;, &lt;code&gt;.assign&lt;/code&gt; the buffer contents to it. We won&amp;rsquo;t be able to &lt;code&gt;move&lt;/code&gt; the string anymore, but that&amp;rsquo;s OK. The results wouldn&amp;rsquo;t be that good - I got ~12s of execution, which is worse than the version above.&lt;/p&gt;
+&lt;h1 id=&#34;alternatives&#34;&gt;
+    &lt;a href=&#34;#alternatives&#34; class=&#34;anchor&#34;&gt;
+        &lt;svg class=&#34;icon&#34; aria-hidden=&#34;true&#34; focusable=&#34;false&#34; height=&#34;16&#34; version=&#34;1.1&#34; viewBox=&#34;0 0 16 16&#34; width=&#34;16&#34;&gt;
+            &lt;path fill-rule=&#34;evenodd&#34;
+                d=&#34;M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z&#34;&gt;
+            &lt;/path&gt;
+        &lt;/svg&gt;
+    &lt;/a&gt;
+    Alternatives
+&lt;/h1&gt;
+&lt;p&gt;There&amp;rsquo;re some changes that could be done to the code (well, I did them, and things stayed the same, or got worse):&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;using different hash function&lt;/strong&gt;. I tried using &lt;a href=&#34;https://github.com/Cyan4973/xxHash&#34;&gt;xxhash&lt;/a&gt;. It doesn&amp;rsquo;t change things, really. Computing hash isn&amp;rsquo;t a bottleneck in this implementation (remember, hash is only computed once per call to &lt;code&gt;try_emplace&lt;/code&gt;), so it&amp;rsquo;s not no that important.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;Using prime numbers as sizes for store&lt;/strong&gt;. Many (most?) hashtable implementations do that, but it didn&amp;rsquo;t make things better in case of mine. Main problem was that truncating the value (computing its modulo) is much harder in case of prime divisors. Even when using &amp;ldquo;magic&amp;rdquo; libraries like &lt;a href=&#34;https://github.com/lemire/fastmod&#34;&gt;fastmod&lt;/a&gt; (and &lt;code&gt;xxhash&lt;/code&gt; instead of &lt;code&gt;std::hash&lt;/code&gt;), it&amp;rsquo;s &lt;em&gt;close enough&lt;/em&gt; to the original version, at best, while being more complex. There&amp;rsquo;s probably some bug I miss that prevents the improvement. Oh,&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;Double hashing&lt;/strong&gt; . Well, it may help. Maybe I&amp;rsquo;ll try that later&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h1 id=&#34;better-io&#34;&gt;
+    &lt;a href=&#34;#better-io&#34; class=&#34;anchor&#34;&gt;
+        &lt;svg class=&#34;icon&#34; aria-hidden=&#34;true&#34; focusable=&#34;false&#34; height=&#34;16&#34; version=&#34;1.1&#34; viewBox=&#34;0 0 16 16&#34; width=&#34;16&#34;&gt;
+            &lt;path fill-rule=&#34;evenodd&#34;
+                d=&#34;M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z&#34;&gt;
+            &lt;/path&gt;
+        &lt;/svg&gt;
+    &lt;/a&gt;
+    Better I/O
+&lt;/h1&gt;
+&lt;p&gt;I think, I&amp;rsquo;m done with the &lt;em&gt;hashtable&lt;/em&gt; tweaking, but there&amp;rsquo;s one more thing that could be done to improve the program in general.&lt;/p&gt;
+&lt;p&gt;If we profile the program, we find that I/O (using &lt;code&gt;fgets&lt;/code&gt;) consumes a huge part of program execution. Our latest versions spends ~4.7s processing strings, but whole ~7s doing I/O.&lt;/p&gt;
+&lt;p&gt;Wouldn&amp;rsquo;t it be great if we could throw away files and buffers just go through the data as if it was just an array of bytes?…&lt;/p&gt;
+&lt;p&gt;Yes, it would be. It will be. That&amp;rsquo;s memory-mapped files I/O.&lt;/p&gt;
+&lt;p&gt;Every OS under sun provides API for that, albeit the particular interface may vary. Thankfully, there&amp;rsquo;re libraries that abstract those differences. I used &lt;a href=&#34;https://github.com/mandreyel/mio/&#34;&gt;mio&lt;/a&gt; because it&amp;rsquo;s really simple to use and it&amp;rsquo;s available via &lt;code&gt;vcpkg&lt;/code&gt;.&lt;/p&gt;
+&lt;p&gt;With it, the input loop turned into&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-c++&#34; data-lang=&#34;c++&#34;&gt;    std&lt;span style=&#34;color:#f92672&#34;&gt;::&lt;/span&gt;error_code error;
+    &lt;span style=&#34;color:#66d9ef&#34;&gt;auto&lt;/span&gt; mmap &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; mio&lt;span style=&#34;color:#f92672&#34;&gt;::&lt;/span&gt;make_mmap_source(argv[i], error);
+    
+    &lt;span style=&#34;color:#66d9ef&#34;&gt;if&lt;/span&gt; (error)
+    {
+        ...
+    }
+    ...
+    std&lt;span style=&#34;color:#f92672&#34;&gt;::&lt;/span&gt;string_view s{mmap.begin(), &lt;span style=&#34;color:#66d9ef&#34;&gt;static_cast&lt;/span&gt;&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&lt;/span&gt;size_t&lt;span style=&#34;color:#f92672&#34;&gt;&amp;gt;&lt;/span&gt;(mmap.size())};
+    std&lt;span style=&#34;color:#f92672&#34;&gt;::&lt;/span&gt;string_view delim{&lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;&lt;/span&gt;&lt;span style=&#34;color:#ae81ff&#34;&gt;\r\n&lt;/span&gt;&lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;&lt;/span&gt;};
+    &lt;span style=&#34;color:#66d9ef&#34;&gt;while&lt;/span&gt; (&lt;span style=&#34;color:#f92672&#34;&gt;!&lt;/span&gt;s.empty()) {
+        &lt;span style=&#34;color:#66d9ef&#34;&gt;auto&lt;/span&gt; eow &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; s.find_first_of(delim);
+        &lt;span style=&#34;color:#66d9ef&#34;&gt;auto&lt;/span&gt; sub &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; s.substr(&lt;span style=&#34;color:#ae81ff&#34;&gt;0&lt;/span&gt;, eow);
+        &lt;span style=&#34;color:#66d9ef&#34;&gt;if&lt;/span&gt; (&lt;span style=&#34;color:#f92672&#34;&gt;!&lt;/span&gt;sub.empty())
+            add(std&lt;span style=&#34;color:#f92672&#34;&gt;::&lt;/span&gt;move(sub));
+        s.remove_prefix(eow);
+        &lt;span style=&#34;color:#66d9ef&#34;&gt;auto&lt;/span&gt; sow &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; s.find_first_not_of(delim);
+        &lt;span style=&#34;color:#66d9ef&#34;&gt;if&lt;/span&gt; (sow &lt;span style=&#34;color:#f92672&#34;&gt;==&lt;/span&gt; std&lt;span style=&#34;color:#f92672&#34;&gt;::&lt;/span&gt;string_view&lt;span style=&#34;color:#f92672&#34;&gt;::&lt;/span&gt;npos) {
+            &lt;span style=&#34;color:#66d9ef&#34;&gt;break&lt;/span&gt;;
+        }
+        s.remove_prefix(sow);
+    }
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;And works &lt;em&gt;blazingly fast&lt;/em&gt;: going through all ~600M of data takes 4s (instead of 7s with traditional I/O), and the whole processing takes slightly longer than 8s.&lt;/p&gt;
+&lt;p&gt;Honestly, it&amp;rsquo;s a shame that I only got the idea of using memory-mapped files late in the game, it&amp;rsquo;d save me an hour or more of my life that I spent waiting for benchmarks to run. &lt;em&gt;sigh&lt;/em&gt;&lt;/p&gt;
+&lt;p&gt;Anyway, here&amp;rsquo;s the final table:&lt;/p&gt;
+&lt;table&gt;
+&lt;thead&gt;
+&lt;tr&gt;
+&lt;th&gt;&lt;/th&gt;
+&lt;th&gt;IO alone&lt;/th&gt;
+&lt;th&gt;C Hash table&lt;/th&gt;
+&lt;th&gt;unordered_map&lt;/th&gt;
+&lt;th&gt;flat_hash_map&lt;/th&gt;
+&lt;th&gt;O/A map&lt;/th&gt;
+&lt;/tr&gt;
+&lt;/thead&gt;
+&lt;tbody&gt;
+&lt;tr&gt;
+&lt;td&gt;total&lt;/td&gt;
+&lt;td&gt;7.042s&lt;/td&gt;
+&lt;td&gt;15.908s&lt;/td&gt;
+&lt;td&gt;13.814&lt;/td&gt;
+&lt;td&gt;12.574&lt;/td&gt;
+&lt;td&gt;11.76&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;total-IO&lt;/td&gt;
+&lt;td&gt;0&lt;/td&gt;
+&lt;td&gt;8.866&lt;/td&gt;
+&lt;td&gt;6.772&lt;/td&gt;
+&lt;td&gt;5.532&lt;/td&gt;
+&lt;td&gt;4.718&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;slowdown&lt;/td&gt;
+&lt;td&gt;&lt;/td&gt;
+&lt;td&gt;x1&lt;/td&gt;
+&lt;td&gt;x0.763&lt;/td&gt;
+&lt;td&gt;x0.624&lt;/td&gt;
+&lt;td&gt;x0.532&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;h2 id=&#34;conclusion-and-clarification&#34;&gt;
+    &lt;a href=&#34;#conclusion-and-clarification&#34; class=&#34;anchor&#34;&gt;
+        &lt;svg class=&#34;icon&#34; aria-hidden=&#34;true&#34; focusable=&#34;false&#34; height=&#34;16&#34; version=&#34;1.1&#34; viewBox=&#34;0 0 16 16&#34; width=&#34;16&#34;&gt;
+            &lt;path fill-rule=&#34;evenodd&#34;
+                d=&#34;M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z&#34;&gt;
+            &lt;/path&gt;
+        &lt;/svg&gt;
+    &lt;/a&gt;
+    Conclusion and Clarification
+&lt;/h2&gt;
+&lt;p&gt;I said that above and I&amp;rsquo;d like to repeat: the main wins here are not due to my ingenuity (algorithms aren&amp;rsquo;t my strong side), but from using C++ facilities (data structures and semantics), and from focusing on a small subset of functionality that is needed for this particular scenario. Implementing search and deletion would be trivial, but, say, supporting STL-style focused interface would complicate things and require some compromises of performance, likely.&lt;/p&gt;
+&lt;p&gt;And I got a lot of hints from my friends, too. Thank you guys.&lt;/p&gt;
+&lt;section class=&#34;footnotes&#34; role=&#34;doc-endnotes&#34;&gt;
+&lt;hr&gt;
+&lt;ol&gt;
+&lt;li id=&#34;fn:1&#34; role=&#34;doc-endnote&#34;&gt;
+&lt;p&gt;people who are smarter than I will immediately point that using prime sizes for the store are better. We&amp;rsquo;ll get there!&amp;#160;&lt;a href=&#34;#fnref:1&#34; class=&#34;footnote-backref&#34; role=&#34;doc-backlink&#34;&gt;&amp;#x21a9;&amp;#xfe0e;&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/section&gt;
+
+    </description>
+    </item>
+    
+    <item>
+    <title>Hashtables &amp; C&#43;&#43; - part 1</title>
+    <link>http://elder-george.github.io/post/hashtables/</link>
+    <pubDate>Sat, 23 Oct 2021 21:02:11 -0700</pubDate>
+    
+    <guid>http://elder-george.github.io/post/hashtables/</guid>
+    <description>
+        &lt;p&gt;Not long ago I stumbled upon &lt;a href=&#34;https://loup-vaillant.fr/projects/string-interning/benchmark&#34;&gt;this post&lt;/a&gt; discussing different approaches to string interning.&lt;/p&gt;
+&lt;p&gt;The author did 4 implementations: (quote)&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;A control in pure C,&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;a Trie in pure C,&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;a hand rolled hash table in pure C,&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;and an &lt;code&gt;std::unordered_map&lt;/code&gt; (hash table) wrapper, in C++.&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;The benchmarked it and found, among other things, that &lt;strong&gt;the C++ version was the slowest of them all&lt;/strong&gt;.&lt;/p&gt;
+&lt;p&gt;This intrigued me. True, C++ standard defines  &lt;code&gt;std::unordered_map&lt;/code&gt; in a way that it can only use chaining, and that&amp;rsquo;s usually is inferior performance-wise to open-addressing hashtables, but there was no way it could be &lt;strong&gt;that&lt;/strong&gt; bad. And definitely &lt;code&gt;std::string&lt;/code&gt; should &lt;em&gt;improve&lt;/em&gt; performance, not make it worse, compared to C-strings because of short string optimization (SSO) etc.&lt;/p&gt;
+&lt;p&gt;So, I decided to look into it. Here&amp;rsquo;s the core parts of the original version of the OP&amp;rsquo;s &lt;code&gt;add&lt;/code&gt; function:&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-c++&#34; data-lang=&#34;c++&#34;&gt;    &lt;span style=&#34;color:#75715e&#34;&gt;// wrapper structure to ensure common interface in all the implementations
+&lt;/span&gt;&lt;span style=&#34;color:#75715e&#34;&gt;&lt;/span&gt;    &lt;span style=&#34;color:#66d9ef&#34;&gt;struct&lt;/span&gt; &lt;span style=&#34;color:#a6e22e&#34;&gt;Intern_pool&lt;/span&gt; {
+        std&lt;span style=&#34;color:#f92672&#34;&gt;::&lt;/span&gt;unordered_map&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&lt;/span&gt;std&lt;span style=&#34;color:#f92672&#34;&gt;::&lt;/span&gt;string, uint&lt;span style=&#34;color:#f92672&#34;&gt;&amp;gt;&lt;/span&gt; map;
+        uint next;
+    };
+    ...
+    uint add(Intern_pool&lt;span style=&#34;color:#f92672&#34;&gt;*&lt;/span&gt; pool, std&lt;span style=&#34;color:#f92672&#34;&gt;::&lt;/span&gt;string s)
+    {
+        &lt;span style=&#34;color:#66d9ef&#34;&gt;auto&lt;/span&gt;&lt;span style=&#34;color:#f92672&#34;&gt;&amp;amp;&lt;/span&gt; map &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; pool&lt;span style=&#34;color:#f92672&#34;&gt;-&amp;gt;&lt;/span&gt;map;
+        &lt;span style=&#34;color:#66d9ef&#34;&gt;if&lt;/span&gt; (map.find(s) &lt;span style=&#34;color:#f92672&#34;&gt;!=&lt;/span&gt; std&lt;span style=&#34;color:#f92672&#34;&gt;::&lt;/span&gt;end(map))
+            &lt;span style=&#34;color:#66d9ef&#34;&gt;return&lt;/span&gt; map.at(s);
+        map.insert(std&lt;span style=&#34;color:#f92672&#34;&gt;::&lt;/span&gt;make_pair(s, &lt;span style=&#34;color:#f92672&#34;&gt;++&lt;/span&gt;pool&lt;span style=&#34;color:#f92672&#34;&gt;-&amp;gt;&lt;/span&gt;next));
+        &lt;span style=&#34;color:#66d9ef&#34;&gt;return&lt;/span&gt; pool&lt;span style=&#34;color:#f92672&#34;&gt;-&amp;gt;&lt;/span&gt;next; 
+    }
+    ...
+    &lt;span style=&#34;color:#66d9ef&#34;&gt;int&lt;/span&gt; main(&lt;span style=&#34;color:#66d9ef&#34;&gt;int&lt;/span&gt; argc, &lt;span style=&#34;color:#66d9ef&#34;&gt;char&lt;/span&gt; &lt;span style=&#34;color:#f92672&#34;&gt;**&lt;/span&gt;argv)
+    {
+        &lt;span style=&#34;color:#66d9ef&#34;&gt;char&lt;/span&gt; buffer[&lt;span style=&#34;color:#ae81ff&#34;&gt;256&lt;/span&gt;];
+        &lt;span style=&#34;color:#66d9ef&#34;&gt;while&lt;/span&gt; (fgets(buffer, &lt;span style=&#34;color:#ae81ff&#34;&gt;256&lt;/span&gt;, file))
+        {
+            buffer[strlen(buffer)&lt;span style=&#34;color:#f92672&#34;&gt;-&lt;/span&gt;&lt;span style=&#34;color:#ae81ff&#34;&gt;1&lt;/span&gt;] &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; &lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#39;\0&amp;#39;&lt;/span&gt;; &lt;span style=&#34;color:#75715e&#34;&gt;// removes the `\n` from fgets()
+&lt;/span&gt;&lt;span style=&#34;color:#75715e&#34;&gt;&lt;/span&gt;            add(&lt;span style=&#34;color:#f92672&#34;&gt;&amp;amp;&lt;/span&gt;intern_pool, buffer);
+        }        
+    }
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;Since the author mentioned that he suspects C++ strings to be a source of slowdown, that was the first thing that caught my eye:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;code&gt;s&lt;/code&gt; was passed to &lt;code&gt;add&lt;/code&gt; by value (so the data from &lt;code&gt;buffer&lt;/code&gt; was copied into it) - that&amp;rsquo;d require allocation if the data in `buffer was long enough to prevent SSO.&lt;/li&gt;
+&lt;li&gt;then it was wrapped into a &lt;code&gt;std::pair&lt;/code&gt; which would make a copy of it - again, if it is short enough, that&amp;rsquo;s just &lt;code&gt;memcpy&lt;/code&gt;, but for a long one that&amp;rsquo;ll be one more allocation&lt;/li&gt;
+&lt;li&gt;on older compilers, &lt;code&gt;map.insert&lt;/code&gt; would create yet another copy. Thankfully, since C++ &lt;code&gt;insert&lt;/code&gt; must support move semantics, so that&amp;rsquo;s not a reason to worry anymore.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;Still, extra copies are bad. Let&amp;rsquo;s eliminate at least one of them:&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-c++&#34; data-lang=&#34;c++&#34;&gt;    uint &lt;span style=&#34;color:#a6e22e&#34;&gt;add&lt;/span&gt;(Intern_pool&lt;span style=&#34;color:#f92672&#34;&gt;*&lt;/span&gt; pool, std&lt;span style=&#34;color:#f92672&#34;&gt;::&lt;/span&gt;string s)
+    {
+        &lt;span style=&#34;color:#66d9ef&#34;&gt;auto&lt;/span&gt;&lt;span style=&#34;color:#f92672&#34;&gt;&amp;amp;&lt;/span&gt; map &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; pool&lt;span style=&#34;color:#f92672&#34;&gt;-&amp;gt;&lt;/span&gt;map; 
+        &lt;span style=&#34;color:#66d9ef&#34;&gt;if&lt;/span&gt; (map.find(s) &lt;span style=&#34;color:#f92672&#34;&gt;!=&lt;/span&gt; std&lt;span style=&#34;color:#f92672&#34;&gt;::&lt;/span&gt;end(map)) 
+            &lt;span style=&#34;color:#66d9ef&#34;&gt;return&lt;/span&gt; map.at(s);
+        map.emplace(std&lt;span style=&#34;color:#f92672&#34;&gt;::&lt;/span&gt;move(s), &lt;span style=&#34;color:#f92672&#34;&gt;++&lt;/span&gt;pool&lt;span style=&#34;color:#f92672&#34;&gt;-&amp;gt;&lt;/span&gt;next));
+        &lt;span style=&#34;color:#66d9ef&#34;&gt;return&lt;/span&gt; pool&lt;span style=&#34;color:#f92672&#34;&gt;-&amp;gt;&lt;/span&gt;next;
+    }
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;Here we have moved &lt;code&gt;s&lt;/code&gt; into the map and used &lt;code&gt;emplace&lt;/code&gt; in addition, so no need to create tuple as well.&lt;/p&gt;
+&lt;p&gt;But the code is still suboptimal:  Let&amp;rsquo;s see how many lookups in the map you do:&lt;/p&gt;
+&lt;ol&gt;
+&lt;li&gt;when doing &lt;code&gt;map.find&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;when doing &lt;code&gt;map.at&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;doing &lt;code&gt;map.insert&lt;/code&gt; (or &lt;code&gt;map.emplace&lt;/code&gt;).&lt;/li&gt;
+&lt;/ol&gt;
+&lt;p&gt;We can do better: the very reason that &lt;code&gt;map.find&lt;/code&gt; returns that cumbersome iterator on success is that it allows to extract value from that iterator, avoiding extra lookup.&lt;/p&gt;
+&lt;p&gt;So a better code would be&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-c++&#34; data-lang=&#34;c++&#34;&gt;    uint &lt;span style=&#34;color:#a6e22e&#34;&gt;add&lt;/span&gt;(Intern_pool&lt;span style=&#34;color:#f92672&#34;&gt;*&lt;/span&gt; pool, std&lt;span style=&#34;color:#f92672&#34;&gt;::&lt;/span&gt;string s)
+    {
+        &lt;span style=&#34;color:#66d9ef&#34;&gt;auto&lt;/span&gt;&lt;span style=&#34;color:#f92672&#34;&gt;&amp;amp;&lt;/span&gt; map &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; pool&lt;span style=&#34;color:#f92672&#34;&gt;-&amp;gt;&lt;/span&gt;map;
+        &lt;span style=&#34;color:#66d9ef&#34;&gt;auto&lt;/span&gt; it &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; map.find(s);
+        &lt;span style=&#34;color:#66d9ef&#34;&gt;if&lt;/span&gt; (it &lt;span style=&#34;color:#f92672&#34;&gt;!=&lt;/span&gt; std&lt;span style=&#34;color:#f92672&#34;&gt;::&lt;/span&gt;end(map))
+            &lt;span style=&#34;color:#66d9ef&#34;&gt;return&lt;/span&gt; it&lt;span style=&#34;color:#f92672&#34;&gt;-&amp;gt;&lt;/span&gt;second;
+        map.emplace(std&lt;span style=&#34;color:#f92672&#34;&gt;::&lt;/span&gt;move(s), &lt;span style=&#34;color:#f92672&#34;&gt;++&lt;/span&gt;pool&lt;span style=&#34;color:#f92672&#34;&gt;-&amp;gt;&lt;/span&gt;next));
+        &lt;span style=&#34;color:#66d9ef&#34;&gt;return&lt;/span&gt; pool&lt;span style=&#34;color:#f92672&#34;&gt;-&amp;gt;&lt;/span&gt;next;
+    }
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;which only leaves one lookup on the &amp;ldquo;happy&amp;rdquo; path, and two on &amp;ldquo;unhappy&amp;rdquo; one. Alternatively, we could use &lt;code&gt;try_emplace&lt;/code&gt; (i.e. on conforming to C++17):&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-c++&#34; data-lang=&#34;c++&#34;&gt;    uint &lt;span style=&#34;color:#a6e22e&#34;&gt;add&lt;/span&gt;(Intern_pool&lt;span style=&#34;color:#f92672&#34;&gt;*&lt;/span&gt; pool, std&lt;span style=&#34;color:#f92672&#34;&gt;::&lt;/span&gt;string s)
+    {
+        &lt;span style=&#34;color:#66d9ef&#34;&gt;auto&lt;/span&gt;&lt;span style=&#34;color:#f92672&#34;&gt;&amp;amp;&lt;/span&gt; map &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; pool&lt;span style=&#34;color:#f92672&#34;&gt;-&amp;gt;&lt;/span&gt;map;
+        &lt;span style=&#34;color:#66d9ef&#34;&gt;auto&lt;/span&gt; [it, inserted_new] &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; map.try_emplace(std&lt;span style=&#34;color:#f92672&#34;&gt;::&lt;/span&gt;move(s), pool&lt;span style=&#34;color:#f92672&#34;&gt;-&amp;gt;&lt;/span&gt;next &lt;span style=&#34;color:#f92672&#34;&gt;+&lt;/span&gt; &lt;span style=&#34;color:#ae81ff&#34;&gt;1&lt;/span&gt;);
+        &lt;span style=&#34;color:#66d9ef&#34;&gt;if&lt;/span&gt; (inserted_new)
+        {
+            &lt;span style=&#34;color:#66d9ef&#34;&gt;return&lt;/span&gt; &lt;span style=&#34;color:#f92672&#34;&gt;++&lt;/span&gt;pool&lt;span style=&#34;color:#f92672&#34;&gt;-&amp;gt;&lt;/span&gt;next;
+        }
+        &lt;span style=&#34;color:#66d9ef&#34;&gt;return&lt;/span&gt; it&lt;span style=&#34;color:#f92672&#34;&gt;-&amp;gt;&lt;/span&gt;second;
+    }
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;Here&amp;rsquo;s results I got on my laptop (Intel i7-4270HQ, 16GB, Win10, MSVC 19.16.27043, x64 mode):&lt;/p&gt;
+&lt;p&gt;&lt;em&gt;(I didn&amp;rsquo;t understand the way OP built the dataset, so I just ran &lt;code&gt;tar -xOvf java.* | identifiers &amp;gt; words.txt&lt;/code&gt;. 
+The &lt;code&gt;identifiers&lt;/code&gt; (author&amp;rsquo;s program to extract keywords and literals) crashed on some png file that &lt;code&gt;tar&lt;/code&gt; didn&amp;rsquo;t filter out, at which point &lt;code&gt;words.txt&lt;/code&gt; was ~592M, which I considered enough for a quick experiment)&lt;/em&gt;&lt;/p&gt;
+&lt;table&gt;
+&lt;thead&gt;
+&lt;tr&gt;
+&lt;th&gt;&lt;/th&gt;
+&lt;th&gt;IO alone&lt;/th&gt;
+&lt;th&gt;Hash table&lt;/th&gt;
+&lt;th&gt;STL&lt;/th&gt;
+&lt;th&gt;STL+strings&lt;/th&gt;
+&lt;th&gt;same+2 lookups&lt;/th&gt;
+&lt;th&gt;same+1 lookup&lt;/th&gt;
+&lt;th&gt;Trie&lt;/th&gt;
+&lt;/tr&gt;
+&lt;/thead&gt;
+&lt;tbody&gt;
+&lt;tr&gt;
+&lt;td&gt;total&lt;/td&gt;
+&lt;td&gt;7.042s&lt;/td&gt;
+&lt;td&gt;15.908s&lt;/td&gt;
+&lt;td&gt;16.461&lt;/td&gt;
+&lt;td&gt;15.522&lt;/td&gt;
+&lt;td&gt;13.814&lt;/td&gt;
+&lt;td&gt;13.861 (WTF?)&lt;/td&gt;
+&lt;td&gt;15.996&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;total-IO&lt;/td&gt;
+&lt;td&gt;0&lt;/td&gt;
+&lt;td&gt;8.866&lt;/td&gt;
+&lt;td&gt;9.419&lt;/td&gt;
+&lt;td&gt;8.480&lt;/td&gt;
+&lt;td&gt;6.772&lt;/td&gt;
+&lt;td&gt;6.819&lt;/td&gt;
+&lt;td&gt;8.954&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;slowdown&lt;/td&gt;
+&lt;td&gt;&lt;/td&gt;
+&lt;td&gt;x1&lt;/td&gt;
+&lt;td&gt;x1.062&lt;/td&gt;
+&lt;td&gt;x0.956&lt;/td&gt;
+&lt;td&gt;x0.763&lt;/td&gt;
+&lt;td&gt;x0.769&lt;/td&gt;
+&lt;td&gt;x1.010&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;p&gt;Against my original intuition, the version using &lt;code&gt;try_emplace&lt;/code&gt; is more or less the same as the version not using it. Why? because (at least in Microsoft&amp;rsquo;s STL) try_emplace literally does the same as the previous version.&lt;/p&gt;
+&lt;p&gt;So we got our C++ version faster than the programs using data structures hand-rolled in C, with few changes in the code (y ~23%).&lt;/p&gt;
+&lt;p&gt;Nice! (but also shows how easily it is to make the code suboptimal with few minor mistakes; also, no surprise that code in a library that has been improved for decades is better than one written by a single person).&lt;/p&gt;
+&lt;p&gt;Well, we can get rid of the &lt;code&gt;std::unordered_map&lt;/code&gt; in favor of an open addressing map. For example, the &lt;code&gt;flat_hash_map&lt;/code&gt; from Abseil library by Google.&lt;/p&gt;
+&lt;p&gt;The change is trivial: we only need to &lt;code&gt;#include &amp;quot;absl/container/flat_hash_map.h&amp;quot;&lt;/code&gt;, add relevant import libraries to the build and replace &lt;code&gt;std::unordered_map&lt;/code&gt; with &lt;code&gt;absl::flat_hash_map&lt;/code&gt;. Everything else works the same way.&lt;/p&gt;
+&lt;p&gt;Having running this new version, I got average execution time 12.574s, i.e. 5.5 s of &amp;ldquo;useful&amp;rdquo; work, 0.62 of the &amp;ldquo;standard&amp;rdquo; hand-rolled hashtable by OP. Great success!&lt;/p&gt;
+&lt;p&gt;(To be continued at &lt;a href=&#34;http://elder-george.github.io/post/hashtables-2/&#34;&gt;the next post&lt;/a&gt;)&lt;/p&gt;
+
+    </description>
+    </item>
+    
   </channel>
 </rss>

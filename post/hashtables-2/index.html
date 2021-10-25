@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="en-us">
+    
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="theme-color" content="dark">
+    <title>Hashtables &amp; C&#43;&#43; - part 2 | /dev/null</title>
+
+    
+    
+    
+    <meta property="og:site_name" content="" />
+    <meta property="og:title" content="Hashtables &amp; C&#43;&#43; - part 2 | /dev/null"/>
+    <meta itemprop="name" content="Hashtables &amp; C&#43;&#43; - part 2 | /dev/null" />
+    <meta name="twitter:title" content="Hashtables &amp; C&#43;&#43; - part 2 | /dev/null" />
+    <meta name="application-name" content="Hashtables &amp; C&#43;&#43; - part 2 | /dev/null" />
+
+
+    <meta name="description" content="Making my own hashtable, just for the kicks" />
+    <meta name="twitter:description" content="Making my own hashtable, just for the kicks "/>
+    <meta itemprop="description" content=" Making my own hashtable, just for the kicks "/>
+    <meta property="og:description" content=" Making my own hashtable, just for the kicks " />
+
+    
+
+<meta property="og:type" content="article" />
+<meta property="article:publisher" content="" />
+<meta property="og:article:published_time" content=2021-10-23T22:45:14-0700 />
+<meta property="article:published_time" content=2021-10-23T22:45:14-0700 />
+
+
+
+
+
+<script defer type="application/ld+json">
+  {
+    "@context": "http://schema.org",
+    "@type": "Article",
+    "headline": "Hashtables \u0026 C++ - part 2",
+    "author": {
+      "@type": "Person",
+      "name": ""
+    },
+    "datePublished": "2021-10-23",
+    "description": "Making my own hashtable, just for the kicks",
+    "wordCount":  1489 ,
+    "mainEntityOfPage": "True",
+    "dateModified": "2021-10-23",
+    "publisher": {
+      "@type": "Organization",
+      "name": "",
+      "logo": {
+        "@type": "imageObject",
+        "url": "http:\/\/elder-george.github.io\/favicon.ico"
+      }
+    }
+  }
+</script>
+
+
+
+    <link rel="shortcut icon" type="image/x-icon" href="/favicon.ico" />
+    
+    <link rel="stylesheet" href="/sass/main.min.ab99ff095f832511e24ffb2fba2b51ad473b2f7e9301d674eba2c6c3a6e8bd81.css">
+    
+</head>
+    <script>
+    (function() {
+        const colorSchemeKey = 'ThemeColorScheme';
+        const colorSchemeItem = localStorage.getItem(colorSchemeKey);
+        const supportDarkMode = window.matchMedia('(prefers-color-scheme: dark)').matches === true;
+
+        if (colorSchemeItem == 'dark' || colorSchemeItem === 'auto' && supportDarkMode) {
+            
+
+            document.documentElement.dataset.userColorScheme = 'dark';
+        } else {
+            document.documentElement.dataset.userColorScheme = 'light';
+        }
+    })();
+</script>
+
+    <body class="dark">
+        <nav class="navbar">
+    <div class="container">
+        <div class="flex">
+            <div>
+                <a class="brand" href="/">
+                    
+                    
+                    /dev/null
+                    </a>
+            </div>
+            <div class="flex">
+                
+                <button id="dark-mode-button">
+                  <svg class="light" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" aria-hidden="true" focusable="false" width="1em" height="1em" style="-ms-transform: rotate(360deg); -webkit-transform: rotate(360deg); transform: rotate(360deg);" preserveAspectRatio="xMidYMid meet" viewBox="0 0 36 36"><path fill="#FFD983" d="M30.312.776C32 19 20 32 .776 30.312c8.199 7.717 21.091 7.588 29.107-.429C37.9 21.867 38.03 8.975 30.312.776z"/><path d="M30.705 15.915a1.163 1.163 0 1 0 1.643 1.641a1.163 1.163 0 0 0-1.643-1.641zm-16.022 14.38a1.74 1.74 0 0 0 0 2.465a1.742 1.742 0 1 0 0-2.465zm13.968-2.147a2.904 2.904 0 0 1-4.108 0a2.902 2.902 0 0 1 0-4.107a2.902 2.902 0 0 1 4.108 0a2.902 2.902 0 0 1 0 4.107z" fill="#FFCC4D"/><rect x="0" y="0" width="36" height="36" fill="rgba(0, 0, 0, 0)" /></svg>
+                  <svg class="dark" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" aria-hidden="true" focusable="false" width="1em" height="1em" style="-ms-transform: rotate(360deg); -webkit-transform: rotate(360deg); transform: rotate(360deg);" preserveAspectRatio="xMidYMid meet" viewBox="0 0 36 36"><path fill="#FFD983" d="M16 2s0-2 2-2s2 2 2 2v2s0 2-2 2s-2-2-2-2V2zm18 14s2 0 2 2s-2 2-2 2h-2s-2 0-2-2s2-2 2-2h2zM4 16s2 0 2 2s-2 2-2 2H2s-2 0-2-2s2-2 2-2h2zm5.121-8.707s1.414 1.414 0 2.828s-2.828 0-2.828 0L4.878 8.708s-1.414-1.414 0-2.829c1.415-1.414 2.829 0 2.829 0l1.414 1.414zm21 21s1.414 1.414 0 2.828s-2.828 0-2.828 0l-1.414-1.414s-1.414-1.414 0-2.828s2.828 0 2.828 0l1.414 1.414zm-.413-18.172s-1.414 1.414-2.828 0s0-2.828 0-2.828l1.414-1.414s1.414-1.414 2.828 0s0 2.828 0 2.828l-1.414 1.414zm-21 21s-1.414 1.414-2.828 0s0-2.828 0-2.828l1.414-1.414s1.414-1.414 2.828 0s0 2.828 0 2.828l-1.414 1.414zM16 32s0-2 2-2s2 2 2 2v2s0 2-2 2s-2-2-2-2v-2z"/><circle fill="#FFD983" cx="18" cy="18" r="10"/><rect x="0" y="0" width="36" height="36" fill="rgba(0, 0, 0, 0)" /></svg>
+                </button>
+            </div>
+            </div>
+    </div>
+</nav>
+        <main>
+            
+<div class="container">
+    <article>
+        <header class="article-header">
+            <div class="thumb">
+                <div>
+                    <h1>Hashtables &amp; C&#43;&#43; - part 2</h1>
+                    <div class="post-meta">
+                        <div>
+                            
+                            
+                              
+                            
+                            By  | <time>October 23, 2021</time>
+                            | 7 minutes
+                        </div>
+                        <div class="tags">
+                            
+                            <a href="/tags/c&#43;&#43;/">C&#43;&#43;</a>
+                            
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </header>
+    </article>
+
+    <div class="article-post">
+    <p>(this is a continuation of <a href="/post/hashtables/">the previous post</a>)</p>
+<p>After playing with performance of the standard (and semi-standard) hashtables, I wondered, if it&rsquo;s hard enough to do my own hashmap to work better than the <code>std::unordered_map</code>. Algorithms and data structures aren&rsquo;t my strongest skills, so I wondered what can I learn here.</p>
+<p><em>(note: we&rsquo;re not bound by STL interfaces here, we&rsquo;re free to do our own; I&rsquo;m going to keep calling the main method <code>try_emplace</code>, but that&rsquo;s all)</em></p>
+<h1 id="first-version">
+    <a href="#first-version" class="anchor">
+        <svg class="icon" aria-hidden="true" focusable="false" height="16" version="1.1" viewBox="0 0 16 16" width="16">
+            <path fill-rule="evenodd"
+                d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z">
+            </path>
+        </svg>
+    </a>
+    First version
+</h1>
+<p><a href="https://gist.github.com/elder-george/c9689ed15fa31eb84e782435179b3cd1">My first attempt (written in 15 min or so) looked like this</a>, and is <em>bad</em> but still ran at ~14s (or ~7s of &ldquo;useful&rdquo; work) on the same ~600M dataset, similar to more or less optimized version using <code>std::unordered_map</code> from previous post. Huh, not bad.</p>
+<p>what&rsquo;s good here:</p>
+<ul>
+<li>
+<p>we only compute hash once for each item;</p>
+</li>
+<li>
+<p>&hellip; that&rsquo;s all? &hellip;</p>
+</li>
+</ul>
+<p>What&rsquo;s bad here?</p>
+<ul>
+<li>the underlying <code>_store</code> size is always a power of 2<sup id="fnref:1"><a href="#fn:1" class="footnote-ref" role="doc-noteref">1</a></sup>, so we can use a trick for computing remainder - <code>full_h &amp; (_store.size() - 1)</code>. That alone saves us ~0.5s of ttal execution.</li>
+</ul>
+<ul>
+<li>
+<p>we use recursion on our second attempt to put the value. We can replace it with iteration; that saves ~0.1s too.</p>
+</li>
+<li>
+<p>moreover, we can move the resizing loop out of main one, since it&rsquo;s only run at the end anyway. It&rsquo;s not a big deal from performance standpoint but it&rsquo;ll make code cleaner;</p>
+</li>
+<li>
+<p>we do string comparison at line 19, but we could compare hashes first and only compare strings when hashes match. That is, instead of</p>
+</li>
+</ul>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-c++" data-lang="c++">    <span style="color:#66d9ef">else</span> <span style="color:#a6e22e">if</span> (std<span style="color:#f92672">::</span>get<span style="color:#f92672">&lt;</span>std<span style="color:#f92672">::</span>string<span style="color:#f92672">&gt;</span>(<span style="color:#f92672">*</span>it) <span style="color:#f92672">==</span> s) {
+        <span style="color:#66d9ef">return</span> {it, false};
+    }
+</code></pre></div><p>we could do</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-c++" data-lang="c++">    <span style="color:#66d9ef">else</span> <span style="color:#a6e22e">if</span> (std<span style="color:#f92672">::</span>get<span style="color:#f92672">&lt;</span>size_t<span style="color:#f92672">&gt;</span>(<span style="color:#f92672">*</span>it) <span style="color:#f92672">==</span> full_h <span style="color:#f92672">&amp;&amp;</span> std<span style="color:#f92672">::</span>get<span style="color:#f92672">&lt;</span>std<span style="color:#f92672">::</span>string<span style="color:#f92672">&gt;</span>(<span style="color:#f92672">*</span>it) <span style="color:#f92672">==</span> s) {
+        <span style="color:#66d9ef">return</span> {it, false};
+    }
+</code></pre></div><p>With this particular dataset it actually makes execution slightly worse because short strings dominate here. Still, a good practice.</p>
+<ul>
+<li>
+<p>we&rsquo;re using <code>std::tuple</code> to store entries. It&rsquo;s not necessarily a good thing, because fields may be unaligned. Explicitly define structure <em>might</em> be slightly better (and definitely more readable).</p>
+</li>
+<li>
+<p>when resizing, we move entries even if their are empty. We can skip them.</p>
+</li>
+</ul>
+<h2 id="lets-fix-those">
+    <a href="#lets-fix-those" class="anchor">
+        <svg class="icon" aria-hidden="true" focusable="false" height="16" version="1.1" viewBox="0 0 16 16" width="16">
+            <path fill-rule="evenodd"
+                d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z">
+            </path>
+        </svg>
+    </a>
+    Let&#39;s fix those!
+</h2>
+<p>In process, let&rsquo;s also clean code a bit, for example, replace loop over iterators with good old loop over integers.</p>
+<p>Here&rsquo;s what I got:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-c++" data-lang="c++"><span style="color:#66d9ef">struct</span> <span style="color:#a6e22e">alignas</span>(<span style="color:#ae81ff">16</span>) Item {
+    size_t full_hash;
+    std<span style="color:#f92672">::</span>string key;
+    <span style="color:#66d9ef">uint32_t</span> value;
+};
+
+<span style="color:#66d9ef">struct</span> <span style="color:#a6e22e">oa_map</span> {
+    <span style="color:#66d9ef">using</span> Store <span style="color:#f92672">=</span> std<span style="color:#f92672">::</span>vector<span style="color:#f92672">&lt;</span>Item<span style="color:#f92672">&gt;</span>;
+    <span style="color:#66d9ef">using</span> iterator <span style="color:#f92672">=</span> Store<span style="color:#f92672">::</span>iterator;
+    Store _store{<span style="color:#ae81ff">1024</span>};
+
+    std<span style="color:#f92672">::</span>pair<span style="color:#f92672">&lt;</span>iterator, <span style="color:#66d9ef">bool</span><span style="color:#f92672">&gt;</span> try_emplace(std<span style="color:#f92672">::</span>string<span style="color:#f92672">&amp;&amp;</span> s, <span style="color:#66d9ef">uint32_t</span> v) {
+        <span style="color:#66d9ef">auto</span> full_h <span style="color:#f92672">=</span> std<span style="color:#f92672">::</span>hash<span style="color:#f92672">&lt;</span>std<span style="color:#f92672">::</span>string<span style="color:#f92672">&gt;</span>{}(s);
+        <span style="color:#66d9ef">return</span> <span style="color:#a6e22e">try_emplace</span>(full_h, std<span style="color:#f92672">::</span>move(s), v);
+    }
+
+    size_t <span style="color:#a6e22e">truncate</span>(size_t v) {
+        <span style="color:#66d9ef">return</span> v <span style="color:#f92672">&amp;</span> (_store.size() <span style="color:#f92672">-</span> <span style="color:#ae81ff">1</span>);
+    }
+
+    std<span style="color:#f92672">::</span>pair<span style="color:#f92672">&lt;</span>iterator, <span style="color:#66d9ef">bool</span><span style="color:#f92672">&gt;</span> try_emplace(size_t full_h, std<span style="color:#f92672">::</span>string<span style="color:#f92672">&amp;&amp;</span> s, <span style="color:#66d9ef">uint32_t</span> v) {
+        <span style="color:#66d9ef">while</span>(true) {
+            <span style="color:#66d9ef">auto</span> h <span style="color:#f92672">=</span> truncate(full_h);
+            <span style="color:#66d9ef">for</span>(<span style="color:#66d9ef">auto</span> i <span style="color:#f92672">=</span> h; i <span style="color:#f92672">&lt;</span> _store.size(); <span style="color:#f92672">++</span>i) {
+                <span style="color:#66d9ef">auto</span><span style="color:#f92672">&amp;</span> entry <span style="color:#f92672">=</span> _store[i];
+                <span style="color:#66d9ef">if</span> (entry.key.empty()) {
+                    entry <span style="color:#f92672">=</span> {full_h, s, v};
+                    <span style="color:#66d9ef">return</span> {_store.begin() <span style="color:#f92672">+</span> i, true};
+                }
+                <span style="color:#66d9ef">else</span> <span style="color:#a6e22e">if</span> (entry.full_hash <span style="color:#f92672">==</span> full_h <span style="color:#f92672">&amp;&amp;</span> entry.key <span style="color:#f92672">==</span> s) {
+                    <span style="color:#66d9ef">return</span> {_store.begin() <span style="color:#f92672">+</span> i, false};
+                }
+            }
+            <span style="color:#75715e">// if we got here, there were too many collisions
+</span><span style="color:#75715e"></span>            expand();
+            <span style="color:#75715e">// this time it&#39;ll succeed, right? RIGHT?
+</span><span style="color:#75715e"></span>        }
+    }
+
+    <span style="color:#66d9ef">void</span> <span style="color:#a6e22e">expand</span>() {
+        <span style="color:#75715e">// hackish resize
+</span><span style="color:#75715e"></span>        <span style="color:#66d9ef">auto</span> old_size <span style="color:#f92672">=</span> _store.size();
+        _store.resize(old_size <span style="color:#f92672">*</span> <span style="color:#ae81ff">2</span>);
+        <span style="color:#75715e">// re-place existing values
+</span><span style="color:#75715e"></span>        <span style="color:#66d9ef">for</span> (<span style="color:#66d9ef">auto</span> i <span style="color:#f92672">=</span> <span style="color:#ae81ff">0</span>; i  <span style="color:#f92672">&lt;</span> old_size; <span style="color:#f92672">++</span>i) {
+            <span style="color:#66d9ef">auto</span> item <span style="color:#f92672">=</span> std<span style="color:#f92672">::</span>move(_store[i]);
+            <span style="color:#66d9ef">if</span> (<span style="color:#f92672">!</span>item.key.empty()) {
+                try_emplace(item.full_hash, std<span style="color:#f92672">::</span>move(item.key), item.value);
+            }
+        }
+    }
+};
+</code></pre></div><p>This results in ~13.5s of execution. Nice.</p>
+<h1 id="but">
+    <a href="#but" class="anchor">
+        <svg class="icon" aria-hidden="true" focusable="false" height="16" version="1.1" viewBox="0 0 16 16" width="16">
+            <path fill-rule="evenodd"
+                d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z">
+            </path>
+        </svg>
+    </a>
+    BUT…
+</h1>
+<p>…but I omitted one more issue with this code, the worst of them all:</p>
+<ul>
+<li>it only probes items <em>after</em> the original insertion point. Which means that if the insertion point (i.e. the hash modulo size) is close to the end, we&rsquo;ll get resizing the <code>_store</code> repeatedly. Instead, we should &ldquo;wrap&rdquo; the iterator so that it starts from the beginning after hitting <code>.end()</code>.</li>
+</ul>
+<p>Let&rsquo;s fix that, too!</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-c++" data-lang="c++">    ...
+    <span style="color:#66d9ef">static</span> <span style="color:#66d9ef">constexpr</span> size_t collision_threshold <span style="color:#f92672">=</span> <span style="color:#ae81ff">42</span>;
+    ...
+    std<span style="color:#f92672">::</span>pair<span style="color:#f92672">&lt;</span>iterator, <span style="color:#66d9ef">bool</span><span style="color:#f92672">&gt;</span> try_emplace(size_t full_h, std<span style="color:#f92672">::</span>string<span style="color:#f92672">&amp;&amp;</span> s, <span style="color:#66d9ef">uint32_t</span> v) {
+        <span style="color:#66d9ef">while</span>(true) {
+            <span style="color:#66d9ef">auto</span> h <span style="color:#f92672">=</span> truncate(full_h);
+            <span style="color:#66d9ef">for</span>(<span style="color:#66d9ef">auto</span> i <span style="color:#f92672">=</span> <span style="color:#ae81ff">0</span>; i <span style="color:#f92672">&lt;</span> collision_threshold; <span style="color:#f92672">++</span>i) {
+                <span style="color:#66d9ef">auto</span> j <span style="color:#f92672">=</span> truncate(i <span style="color:#f92672">+</span> h);
+
+                <span style="color:#66d9ef">auto</span><span style="color:#f92672">&amp;</span> entry <span style="color:#f92672">=</span> _store[j];
+                <span style="color:#66d9ef">if</span> (entry.full_hash <span style="color:#f92672">==</span> empty_value) {
+                    entry <span style="color:#f92672">=</span> {full_h, std<span style="color:#f92672">::</span>move(s), v};
+                    <span style="color:#66d9ef">return</span> {_store.data()<span style="color:#f92672">+</span>j, true};
+                }
+                <span style="color:#66d9ef">else</span> <span style="color:#a6e22e">if</span> (entry.full_hash <span style="color:#f92672">==</span> full_h <span style="color:#f92672">&amp;&amp;</span> entry.key <span style="color:#f92672">==</span> s) {
+                    <span style="color:#66d9ef">return</span> {_store.data()<span style="color:#f92672">+</span>j, false};
+                }
+            }
+            <span style="color:#75715e">// if we got here, there were too many collisions
+</span><span style="color:#75715e"></span>            expand();
+        }
+    }
+    ...
+</code></pre></div><p>This gives us average execution time of 12.85s, i.e. we just saved ~0.65s.</p>
+<h1 id="do-not-pay-per-view">
+    <a href="#do-not-pay-per-view" class="anchor">
+        <svg class="icon" aria-hidden="true" focusable="false" height="16" version="1.1" viewBox="0 0 16 16" width="16">
+            <path fill-rule="evenodd"
+                d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z">
+            </path>
+        </svg>
+    </a>
+    Do not pay per view
+</h1>
+<p>Now, to think of it, wwe&rsquo;re creating a <code>std::string</code> for each line in the input file, but we&rsquo;re going to discard it if it had been interned previously.</p>
+<p>This <em>was</em> necessary because that&rsquo;s what <code>std::unordered_map</code> and <code>abseil::flat_hash_map</code> do, but in our specific program we don&rsquo;t have too.</p>
+<p>Let&rsquo;s only create <code>std::string</code> on actual insertion, and use <code>std::string_view</code> in all other contexts:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-c++" data-lang="c++">    std<span style="color:#f92672">::</span>pair<span style="color:#f92672">&lt;</span>iterator, <span style="color:#66d9ef">bool</span><span style="color:#f92672">&gt;</span> try_emplace(std<span style="color:#f92672">::</span>string_view<span style="color:#f92672">&amp;&amp;</span> s, <span style="color:#66d9ef">uint32_t</span> v) {
+        <span style="color:#66d9ef">auto</span> full_h <span style="color:#f92672">=</span> std<span style="color:#f92672">::</span>hash<span style="color:#f92672">&lt;</span>std<span style="color:#f92672">::</span>string_view<span style="color:#f92672">&gt;</span>{}(s);
+        <span style="color:#66d9ef">return</span> <span style="color:#a6e22e">try_emplace</span>(full_h, std<span style="color:#f92672">::</span>move(s), v);
+    }
+
+    std<span style="color:#f92672">::</span>pair<span style="color:#f92672">&lt;</span>iterator, <span style="color:#66d9ef">bool</span><span style="color:#f92672">&gt;</span> try_emplace(size_t full_h, std<span style="color:#f92672">::</span>string_view<span style="color:#f92672">&amp;&amp;</span> s, <span style="color:#66d9ef">uint32_t</span> v) {
+        ...
+                <span style="color:#66d9ef">if</span> (entry.key.empty()) {
+                    entry <span style="color:#f92672">=</span> {full_h, std<span style="color:#f92672">::</span>string{s}, v};
+                    <span style="color:#66d9ef">return</span> {_store.begin() <span style="color:#f92672">+</span> j, true};
+                }
+        ...          
+    }
+    ...
+
+<span style="color:#66d9ef">uint32_t</span> add(Intern_pool<span style="color:#f92672">*</span> pool, std<span style="color:#f92672">::</span>string_view<span style="color:#f92672">&amp;&amp;</span> s) {
+    ... <span style="color:#75715e">// the same
+</span><span style="color:#75715e"></span>}
+...
+<span style="color:#66d9ef">int</span> main(<span style="color:#66d9ef">int</span> argc, <span style="color:#66d9ef">char</span><span style="color:#f92672">**</span> argv) {
+    ...
+        <span style="color:#66d9ef">char</span> buffer[<span style="color:#ae81ff">256</span>];
+        <span style="color:#66d9ef">while</span> (fgets(buffer, <span style="color:#ae81ff">256</span>, file)) <span style="color:#75715e">// one identifier per line
+</span><span style="color:#75715e"></span>        {
+            <span style="color:#66d9ef">auto</span> len <span style="color:#f92672">=</span> strlen(buffer);
+            buffer[len<span style="color:#f92672">-</span><span style="color:#ae81ff">1</span>] <span style="color:#f92672">=</span> <span style="color:#e6db74">&#39;\0&#39;</span>; <span style="color:#75715e">// removes the `\n` from fgets()
+</span><span style="color:#75715e"></span>            add(<span style="color:#f92672">&amp;</span>intern_pool, std<span style="color:#f92672">::</span>move(std<span style="color:#f92672">::</span>string_view(buffer, len)));
+        }
+    ...
+}
+
+</code></pre></div><p>This one gives us 11.76s (so, ~4.7s of &ldquo;useful&rdquo; work). So, we have beaten <code>abseil::flat_hash_map</code> (by cheating and making a better signature, as well as not implementing 90% of what it can do).</p>
+<p>Could we avoid that? to a degree. We could create a shared string in <code>main</code>, <code>.assign</code> the buffer contents to it. We won&rsquo;t be able to <code>move</code> the string anymore, but that&rsquo;s OK. The results wouldn&rsquo;t be that good - I got ~12s of execution, which is worse than the version above.</p>
+<h1 id="alternatives">
+    <a href="#alternatives" class="anchor">
+        <svg class="icon" aria-hidden="true" focusable="false" height="16" version="1.1" viewBox="0 0 16 16" width="16">
+            <path fill-rule="evenodd"
+                d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z">
+            </path>
+        </svg>
+    </a>
+    Alternatives
+</h1>
+<p>There&rsquo;re some changes that could be done to the code (well, I did them, and things stayed the same, or got worse):</p>
+<ul>
+<li>
+<p><strong>using different hash function</strong>. I tried using <a href="https://github.com/Cyan4973/xxHash">xxhash</a>. It doesn&rsquo;t change things, really. Computing hash isn&rsquo;t a bottleneck in this implementation (remember, hash is only computed once per call to <code>try_emplace</code>), so it&rsquo;s not no that important.</p>
+</li>
+<li>
+<p><strong>Using prime numbers as sizes for store</strong>. Many (most?) hashtable implementations do that, but it didn&rsquo;t make things better in case of mine. Main problem was that truncating the value (computing its modulo) is much harder in case of prime divisors. Even when using &ldquo;magic&rdquo; libraries like <a href="https://github.com/lemire/fastmod">fastmod</a> (and <code>xxhash</code> instead of <code>std::hash</code>), it&rsquo;s <em>close enough</em> to the original version, at best, while being more complex. There&rsquo;s probably some bug I miss that prevents the improvement. Oh,</p>
+</li>
+<li>
+<p><strong>Double hashing</strong> . Well, it may help. Maybe I&rsquo;ll try that later</p>
+</li>
+</ul>
+<h1 id="better-io">
+    <a href="#better-io" class="anchor">
+        <svg class="icon" aria-hidden="true" focusable="false" height="16" version="1.1" viewBox="0 0 16 16" width="16">
+            <path fill-rule="evenodd"
+                d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z">
+            </path>
+        </svg>
+    </a>
+    Better I/O
+</h1>
+<p>I think, I&rsquo;m done with the <em>hashtable</em> tweaking, but there&rsquo;s one more thing that could be done to improve the program in general.</p>
+<p>If we profile the program, we find that I/O (using <code>fgets</code>) consumes a huge part of program execution. Our latest versions spends ~4.7s processing strings, but whole ~7s doing I/O.</p>
+<p>Wouldn&rsquo;t it be great if we could throw away files and buffers just go through the data as if it was just an array of bytes?…</p>
+<p>Yes, it would be. It will be. That&rsquo;s memory-mapped files I/O.</p>
+<p>Every OS under sun provides API for that, albeit the particular interface may vary. Thankfully, there&rsquo;re libraries that abstract those differences. I used <a href="https://github.com/mandreyel/mio/">mio</a> because it&rsquo;s really simple to use and it&rsquo;s available via <code>vcpkg</code>.</p>
+<p>With it, the input loop turned into</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-c++" data-lang="c++">    std<span style="color:#f92672">::</span>error_code error;
+    <span style="color:#66d9ef">auto</span> mmap <span style="color:#f92672">=</span> mio<span style="color:#f92672">::</span>make_mmap_source(argv[i], error);
+    
+    <span style="color:#66d9ef">if</span> (error)
+    {
+        ...
+    }
+    ...
+    std<span style="color:#f92672">::</span>string_view s{mmap.begin(), <span style="color:#66d9ef">static_cast</span><span style="color:#f92672">&lt;</span>size_t<span style="color:#f92672">&gt;</span>(mmap.size())};
+    std<span style="color:#f92672">::</span>string_view delim{<span style="color:#e6db74">&#34;</span><span style="color:#ae81ff">\r\n</span><span style="color:#e6db74">&#34;</span>};
+    <span style="color:#66d9ef">while</span> (<span style="color:#f92672">!</span>s.empty()) {
+        <span style="color:#66d9ef">auto</span> eow <span style="color:#f92672">=</span> s.find_first_of(delim);
+        <span style="color:#66d9ef">auto</span> sub <span style="color:#f92672">=</span> s.substr(<span style="color:#ae81ff">0</span>, eow);
+        <span style="color:#66d9ef">if</span> (<span style="color:#f92672">!</span>sub.empty())
+            add(std<span style="color:#f92672">::</span>move(sub));
+        s.remove_prefix(eow);
+        <span style="color:#66d9ef">auto</span> sow <span style="color:#f92672">=</span> s.find_first_not_of(delim);
+        <span style="color:#66d9ef">if</span> (sow <span style="color:#f92672">==</span> std<span style="color:#f92672">::</span>string_view<span style="color:#f92672">::</span>npos) {
+            <span style="color:#66d9ef">break</span>;
+        }
+        s.remove_prefix(sow);
+    }
+</code></pre></div><p>And works <em>blazingly fast</em>: going through all ~600M of data takes 4s (instead of 7s with traditional I/O), and the whole processing takes slightly longer than 8s.</p>
+<p>Honestly, it&rsquo;s a shame that I only got the idea of using memory-mapped files late in the game, it&rsquo;d save me an hour or more of my life that I spent waiting for benchmarks to run. <em>sigh</em></p>
+<p>Anyway, here&rsquo;s the final table:</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>IO alone</th>
+<th>C Hash table</th>
+<th>unordered_map</th>
+<th>flat_hash_map</th>
+<th>O/A map</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>total</td>
+<td>7.042s</td>
+<td>15.908s</td>
+<td>13.814</td>
+<td>12.574</td>
+<td>11.76</td>
+</tr>
+<tr>
+<td>total-IO</td>
+<td>0</td>
+<td>8.866</td>
+<td>6.772</td>
+<td>5.532</td>
+<td>4.718</td>
+</tr>
+<tr>
+<td>slowdown</td>
+<td></td>
+<td>x1</td>
+<td>x0.763</td>
+<td>x0.624</td>
+<td>x0.532</td>
+</tr>
+</tbody>
+</table>
+<h2 id="conclusion-and-clarification">
+    <a href="#conclusion-and-clarification" class="anchor">
+        <svg class="icon" aria-hidden="true" focusable="false" height="16" version="1.1" viewBox="0 0 16 16" width="16">
+            <path fill-rule="evenodd"
+                d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z">
+            </path>
+        </svg>
+    </a>
+    Conclusion and Clarification
+</h2>
+<p>I said that above and I&rsquo;d like to repeat: the main wins here are not due to my ingenuity (algorithms aren&rsquo;t my strong side), but from using C++ facilities (data structures and semantics), and from focusing on a small subset of functionality that is needed for this particular scenario. Implementing search and deletion would be trivial, but, say, supporting STL-style focused interface would complicate things and require some compromises of performance, likely.</p>
+<p>And I got a lot of hints from my friends, too. Thank you guys.</p>
+<section class="footnotes" role="doc-endnotes">
+<hr>
+<ol>
+<li id="fn:1" role="doc-endnote">
+<p>people who are smarter than I will immediately point that using prime sizes for the store are better. We&rsquo;ll get there!&#160;<a href="#fnref:1" class="footnote-backref" role="doc-backlink">&#x21a9;&#xfe0e;</a></p>
+</li>
+</ol>
+</section>
+
+    </div>
+</div>
+
+<div class="container">
+    
+    <nav class="flex container suggested">
+        
+        <a rel="prev" href="/post/hashtables/" title="Previous post (older)">
+            <span>Previous</span>
+            Hashtables &amp; C&#43;&#43; - part 1
+            </a>
+        
+        
+        
+    </nav>
+    
+</div>
+ 
+<div class="container">
+    
+</div>
+
+</main>
+
+
+        </main>
+        <footer class="footer flex">
+    <section class="container">
+        <nav class="footer-links">
+            
+        </nav>
+
+        
+    </section>
+    <script defer src="/ts/features.c81551cd4dbef120af278f16966a41142c02be9ff5d6a669be09820fbf047456.js" 
+    data-enable-footnotes="true"
+    ></script>
+</footer>
+
+    </body>
+</html>
