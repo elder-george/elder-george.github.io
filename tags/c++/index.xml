@@ -6,7 +6,19 @@
     <description>Recent content in C&#43;&#43; on /dev/null</description>
     <generator>Hugo -- gohugo.io</generator>
     <language>en-us</language>
-    <lastBuildDate>Sat, 23 Oct 2021 22:45:14 -0700</lastBuildDate><atom:link href="http://elder-george.github.io/tags/c++/index.xml" rel="self" type="application/rss+xml" />
+    <lastBuildDate>Sat, 06 Nov 2021 19:14:50 -0700</lastBuildDate><atom:link href="http://elder-george.github.io/tags/c++/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>Safe Buffers</title>
+      <link>http://elder-george.github.io/post/safe-buffers/</link>
+      <pubDate>Sat, 06 Nov 2021 19:14:50 -0700</pubDate>
+      
+      <guid>http://elder-george.github.io/post/safe-buffers/</guid>
+      <description>DisclaimerThis is merely an exercise. While it may work in production, your colleagues may be not so happy with it.
+Passing C&amp;#43;&amp;#43; containers into C-style functionsWhen using libraries with C-style interfaces, we often see functions that accept an array of data, or a buffer as two parameters: pointer to the first element and length.
+Classic example is
+char *fgets(char *str, int n, FILE *stream) If we&amp;rsquo;re going to call it, we&amp;rsquo;ll have something like</description>
+    </item>
+    
     <item>
       <title>Hashtables &amp; C&#43;&#43; - part 2</title>
       <link>http://elder-george.github.io/post/hashtables-2/</link>

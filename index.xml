@@ -5,7 +5,138 @@
     <description>Recent content on /dev/null</description>
     <generator>Hugo -- gohugo.io</generator>
     <language>en-us</language>
-    <lastBuildDate>Sat, 23 Oct 2021 22:45:14 -0700</lastBuildDate><atom:link href="http://elder-george.github.io/index.xml" rel="self" type="application/rss+xml" />
+    <lastBuildDate>Sat, 06 Nov 2021 19:14:50 -0700</lastBuildDate><atom:link href="http://elder-george.github.io/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+    <title>Safe Buffers</title>
+    <link>http://elder-george.github.io/post/safe-buffers/</link>
+    <pubDate>Sat, 06 Nov 2021 19:14:50 -0700</pubDate>
+    
+    <guid>http://elder-george.github.io/post/safe-buffers/</guid>
+    <description>
+        &lt;h1 id=&#34;disclaimer&#34;&gt;
+    &lt;a href=&#34;#disclaimer&#34; class=&#34;anchor&#34;&gt;
+        &lt;svg class=&#34;icon&#34; aria-hidden=&#34;true&#34; focusable=&#34;false&#34; height=&#34;16&#34; version=&#34;1.1&#34; viewBox=&#34;0 0 16 16&#34; width=&#34;16&#34;&gt;
+            &lt;path fill-rule=&#34;evenodd&#34;
+                d=&#34;M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z&#34;&gt;
+            &lt;/path&gt;
+        &lt;/svg&gt;
+    &lt;/a&gt;
+    Disclaimer
+&lt;/h1&gt;
+&lt;p&gt;&lt;em&gt;This is merely an exercise. While it may work in production, your colleagues may be not so happy with it.&lt;/em&gt;&lt;/p&gt;
+&lt;h1 id=&#34;passing-c-containers-into-c-style-functions&#34;&gt;
+    &lt;a href=&#34;#passing-c-containers-into-c-style-functions&#34; class=&#34;anchor&#34;&gt;
+        &lt;svg class=&#34;icon&#34; aria-hidden=&#34;true&#34; focusable=&#34;false&#34; height=&#34;16&#34; version=&#34;1.1&#34; viewBox=&#34;0 0 16 16&#34; width=&#34;16&#34;&gt;
+            &lt;path fill-rule=&#34;evenodd&#34;
+                d=&#34;M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z&#34;&gt;
+            &lt;/path&gt;
+        &lt;/svg&gt;
+    &lt;/a&gt;
+    Passing C&amp;#43;&amp;#43; containers into C-style functions
+&lt;/h1&gt;
+&lt;p&gt;When using libraries with C-style interfaces, we often see functions that accept an array of data, or a buffer as two parameters: pointer to the first element and length.&lt;/p&gt;
+&lt;p&gt;Classic example is&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-c++&#34; data-lang=&#34;c++&#34;&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;char&lt;/span&gt; &lt;span style=&#34;color:#f92672&#34;&gt;*&lt;/span&gt;fgets(&lt;span style=&#34;color:#66d9ef&#34;&gt;char&lt;/span&gt; &lt;span style=&#34;color:#f92672&#34;&gt;*&lt;/span&gt;str, &lt;span style=&#34;color:#66d9ef&#34;&gt;int&lt;/span&gt; n, FILE &lt;span style=&#34;color:#f92672&#34;&gt;*&lt;/span&gt;stream)
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;If we&amp;rsquo;re going to call it, we&amp;rsquo;ll have something like&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-c++&#34; data-lang=&#34;c++&#34;&gt;    &lt;span style=&#34;color:#66d9ef&#34;&gt;char&lt;/span&gt; buffer[BUF_SIZE];
+    &lt;span style=&#34;color:#66d9ef&#34;&gt;while&lt;/span&gt; (fgets(buffer, BUF_SIZE, file))
+        ...
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;or&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-c++&#34; data-lang=&#34;c++&#34;&gt;    std&lt;span style=&#34;color:#f92672&#34;&gt;::&lt;/span&gt;array&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&lt;/span&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;char&lt;/span&gt;, BUF_SIZE&lt;span style=&#34;color:#f92672&#34;&gt;&amp;gt;&lt;/span&gt; buffer;
+    &lt;span style=&#34;color:#66d9ef&#34;&gt;while&lt;/span&gt; (fgets(buffer.data(), buffer.size(), file))
+        ...
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;In C++ we usually have data types that provide both buffer and size, so wouldn&amp;rsquo;t it be nice to pass only one argument?&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-c++&#34; data-lang=&#34;c++&#34;&gt;    std&lt;span style=&#34;color:#f92672&#34;&gt;::&lt;/span&gt;array&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&lt;/span&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;char&lt;/span&gt;, BUF_SIZE&lt;span style=&#34;color:#f92672&#34;&gt;&amp;gt;&lt;/span&gt; buffer;
+    &lt;span style=&#34;color:#66d9ef&#34;&gt;while&lt;/span&gt; (my_fgets(buffer, file))
+        ...
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;Indeed, it would!&lt;/p&gt;
+&lt;p&gt;&lt;em&gt;If you felt cringe at the very mention of such an idea, you may have it even worse further. Consider yourself warned.&lt;/em&gt;&lt;/p&gt;
+&lt;h1 id=&#34;problem-statement&#34;&gt;
+    &lt;a href=&#34;#problem-statement&#34; class=&#34;anchor&#34;&gt;
+        &lt;svg class=&#34;icon&#34; aria-hidden=&#34;true&#34; focusable=&#34;false&#34; height=&#34;16&#34; version=&#34;1.1&#34; viewBox=&#34;0 0 16 16&#34; width=&#34;16&#34;&gt;
+            &lt;path fill-rule=&#34;evenodd&#34;
+                d=&#34;M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z&#34;&gt;
+            &lt;/path&gt;
+        &lt;/svg&gt;
+    &lt;/a&gt;
+    Problem statement
+&lt;/h1&gt;
+&lt;p&gt;Ok, so let&amp;rsquo;s formulate what we&amp;rsquo;re trying to achieve here:&lt;/p&gt;
+&lt;p&gt;For a function &lt;code&gt;F&lt;/code&gt; get a wrapper function &lt;code&gt;expand_containers&amp;lt;F&amp;gt;&lt;/code&gt; that will forward it&amp;rsquo;s arguments to &lt;code&gt;F&lt;/code&gt; &amp;ldquo;as-is&amp;rdquo;, unless those are containers - those need to be expanded into two arguments, pointer and size.&lt;/p&gt;
+&lt;p&gt;Expressed as a C++ template, it&amp;rsquo;d look like&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-c++&#34; data-lang=&#34;c++&#34;&gt;    &lt;span style=&#34;color:#66d9ef&#34;&gt;template&lt;/span&gt;&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&lt;/span&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;auto&lt;/span&gt; func, &lt;span style=&#34;color:#66d9ef&#34;&gt;typename&lt;/span&gt;... TActuals&lt;span style=&#34;color:#f92672&#34;&gt;&amp;gt;&lt;/span&gt;
+    &lt;span style=&#34;color:#66d9ef&#34;&gt;auto&lt;/span&gt; expand_containers(TActuals&lt;span style=&#34;color:#f92672&#34;&gt;&amp;amp;&amp;amp;&lt;/span&gt;... args) 
+    {
+        &lt;span style=&#34;color:#66d9ef&#34;&gt;return&lt;/span&gt; &lt;span style=&#34;color:#a6e22e&#34;&gt;func&lt;/span&gt;(expand_or_forward(std&lt;span style=&#34;color:#f92672&#34;&gt;::&lt;/span&gt;forward&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&lt;/span&gt;TActuals&lt;span style=&#34;color:#f92672&#34;&gt;&amp;gt;&lt;/span&gt;(args)...));
+    }
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;h1 id=&#34;will-the-code-above-work&#34;&gt;
+    &lt;a href=&#34;#will-the-code-above-work&#34; class=&#34;anchor&#34;&gt;
+        &lt;svg class=&#34;icon&#34; aria-hidden=&#34;true&#34; focusable=&#34;false&#34; height=&#34;16&#34; version=&#34;1.1&#34; viewBox=&#34;0 0 16 16&#34; width=&#34;16&#34;&gt;
+            &lt;path fill-rule=&#34;evenodd&#34;
+                d=&#34;M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z&#34;&gt;
+            &lt;/path&gt;
+        &lt;/svg&gt;
+    &lt;/a&gt;
+    Will the code above work?
+&lt;/h1&gt;
+&lt;p&gt;No, it won&amp;rsquo;t: we cannot make a function expand that will convert one type into two.&lt;/p&gt;
+&lt;p&gt;But we don&amp;rsquo;t need to expand &lt;em&gt;types&lt;/em&gt;! We can expand the &lt;em&gt;values&lt;/em&gt; of container arguments into  tuples, and concatenate those tuples (using &lt;code&gt;std::tuple_cat&lt;/code&gt;) with the values of other arguments. Then we can simply call the function with that tuple as an argument, using &lt;code&gt;std::apply&lt;/code&gt;.&lt;/p&gt;
+&lt;p&gt;So, the code will look like this&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-c++&#34; data-lang=&#34;c++&#34;&gt;    &lt;span style=&#34;color:#66d9ef&#34;&gt;template&lt;/span&gt;&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&lt;/span&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;auto&lt;/span&gt; func, &lt;span style=&#34;color:#66d9ef&#34;&gt;typename&lt;/span&gt;... TActuals&lt;span style=&#34;color:#f92672&#34;&gt;&amp;gt;&lt;/span&gt;
+    &lt;span style=&#34;color:#66d9ef&#34;&gt;auto&lt;/span&gt; expand_containers(TActuals&lt;span style=&#34;color:#f92672&#34;&gt;&amp;amp;&amp;amp;&lt;/span&gt;... args) 
+    {
+        &lt;span style=&#34;color:#66d9ef&#34;&gt;auto&lt;/span&gt; tuple &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; std&lt;span style=&#34;color:#f92672&#34;&gt;::&lt;/span&gt;tuple_cat(expand_or_forward(std&lt;span style=&#34;color:#f92672&#34;&gt;::&lt;/span&gt;forward&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&lt;/span&gt;TActuals&lt;span style=&#34;color:#f92672&#34;&gt;&amp;gt;&lt;/span&gt;(args)...));
+        &lt;span style=&#34;color:#66d9ef&#34;&gt;return&lt;/span&gt; std&lt;span style=&#34;color:#f92672&#34;&gt;::&lt;/span&gt;apply(func, std&lt;span style=&#34;color:#f92672&#34;&gt;::&lt;/span&gt;move(tuple));
+    }
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;Now we only need to define &lt;code&gt;expand_or_forward&lt;/code&gt;!&lt;/p&gt;
+&lt;p&gt;First of all, the version for &amp;ldquo;normal&amp;rdquo; values:&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-c++&#34; data-lang=&#34;c++&#34;&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;template&lt;/span&gt;&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&lt;/span&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;typename&lt;/span&gt; TScalar&lt;span style=&#34;color:#f92672&#34;&gt;&amp;gt;&lt;/span&gt;
+std&lt;span style=&#34;color:#f92672&#34;&gt;::&lt;/span&gt;tuple&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&lt;/span&gt;TScalar&lt;span style=&#34;color:#f92672&#34;&gt;&amp;gt;&lt;/span&gt; expand_or_forward(TScalar&lt;span style=&#34;color:#f92672&#34;&gt;&amp;amp;&amp;amp;&lt;/span&gt; t)
+{
+    &lt;span style=&#34;color:#66d9ef&#34;&gt;return&lt;/span&gt; { std&lt;span style=&#34;color:#f92672&#34;&gt;::&lt;/span&gt;forward&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&lt;/span&gt;TScalar&lt;span style=&#34;color:#f92672&#34;&gt;&amp;gt;&lt;/span&gt;(t) };
+}
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;then for containers:&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-c++&#34; data-lang=&#34;c++&#34;&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;template&lt;/span&gt;&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&lt;/span&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;typename&lt;/span&gt; TContainer, &lt;span style=&#34;color:#66d9ef&#34;&gt;typename&lt;/span&gt; TData &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; &lt;span style=&#34;color:#66d9ef&#34;&gt;decltype&lt;/span&gt;(TContainer{}&lt;span style=&#34;color:#f92672&#34;&gt;::&lt;/span&gt;data())&lt;span style=&#34;color:#f92672&#34;&gt;&amp;gt;&lt;/span&gt;
+std&lt;span style=&#34;color:#f92672&#34;&gt;::&lt;/span&gt;tuple&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&lt;/span&gt;TData, size_t&lt;span style=&#34;color:#f92672&#34;&gt;&amp;gt;&lt;/span&gt; expand_or_forward(TContainer&lt;span style=&#34;color:#f92672&#34;&gt;&amp;amp;&lt;/span&gt; t)
+{
+    &lt;span style=&#34;color:#66d9ef&#34;&gt;return&lt;/span&gt;  { t.data(), t.size() };
+}
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;And why should&amp;rsquo;t we define it for C-style arrays of known size?&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-c++&#34; data-lang=&#34;c++&#34;&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;template&lt;/span&gt;&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&lt;/span&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;typename&lt;/span&gt; TItem, size_t N&lt;span style=&#34;color:#f92672&#34;&gt;&amp;gt;&lt;/span&gt;
+std&lt;span style=&#34;color:#f92672&#34;&gt;::&lt;/span&gt;tuple&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&lt;/span&gt;TItem&lt;span style=&#34;color:#f92672&#34;&gt;*&lt;/span&gt;, size_t&lt;span style=&#34;color:#f92672&#34;&gt;&amp;gt;&lt;/span&gt; expand_or_forward(TItem (&lt;span style=&#34;color:#f92672&#34;&gt;&amp;amp;&lt;/span&gt;array)[N])
+{
+    &lt;span style=&#34;color:#66d9ef&#34;&gt;return&lt;/span&gt; { array, N };
+}
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;That&amp;rsquo;s all!&lt;/p&gt;
+&lt;h1 id=&#34;performance&#34;&gt;
+    &lt;a href=&#34;#performance&#34; class=&#34;anchor&#34;&gt;
+        &lt;svg class=&#34;icon&#34; aria-hidden=&#34;true&#34; focusable=&#34;false&#34; height=&#34;16&#34; version=&#34;1.1&#34; viewBox=&#34;0 0 16 16&#34; width=&#34;16&#34;&gt;
+            &lt;path fill-rule=&#34;evenodd&#34;
+                d=&#34;M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z&#34;&gt;
+            &lt;/path&gt;
+        &lt;/svg&gt;
+    &lt;/a&gt;
+    Performance
+&lt;/h1&gt;
+&lt;p&gt;Is there a cost of this transformation (besides cognitive one)?&lt;/p&gt;
+&lt;p&gt;Well, we can look at &lt;a href=&#34;https://godbolt.org/#z:OYLghAFBqd5QCxAYwPYBMCmBRdBLAF1QCcAaPECAMzwBtMA7AQwFtMQByARg9KtQYEAysib0QXACx8BBAKoBnTAAUAHpwAMvAFYTStJg1DIApACYAQuYukl9ZATwDKjdAGFUtAK4sGIMxqkrgAyeAyYAHI%2BAEaYxCAAzACcpAAOqAqETgwe3r7%2BgemZjgKh4VEssfHJtpj2JQxCBEzEBLk%2BfgG19dlNLQRlkTFxiSkKza3t%2BV3j/YMVVaMAlLaoXsTI7BzmCWHI3lgA1CYJbgReqfQn2CYaAII7eweYx6fI4/iC17cPZrsM%2By8RxObhaxCYAE9vvdHgDnq83O8CPhUNCHvcCJgWJcmJiQQQIalGKwXgAVDyCJhhOKkQ4EonMNiHUkAEVxTFeLMOWH29MwEHJsip4WIJgA7FYxSyAHTodkQJZLNGzRzIQ5oBjjTCqVLEQ4fEAgc6XTAg1ns2kGkCZABemAA%2BgRrodtalDOh7SR7fxiAB3FroAUU5rU0VmABsdKVMIlP0O8cOxEw52IDGOErpsvlK0ztv5S3TLJOVhjRZhGKxOLxpz5jLJAElMSxLcjDXnHYcIsrmqr1QItTq9VbjVdTqTG1iAFQt9BtvB2x3O13uz3Eb0kf3EQPjpuHCDmcNgyFKgCsFi7J5Z0YesfuCcTyfWafFFkOR4htIiheLP3FZfRdxNlWpo1oSxJMqSIhiC03a4ngaoagOur6q2RoXKObiQaIBiigk2AujqK5ej6m7blBOEHgeUa/redz3kmKbPhmVokQGZrkTBeEQAQBZ/j%2Bpa/hW2IGJiCJMF4RCHFQtK1iS0rycydwOF4YgKLBvaIZig5vhJqAEW6DAehqIYigoApKecqmURG8nSm%2BxDAAovG0fe4mSSOLwnFyw7oQ6ogEBAy6Gau65%2BgGEAsRubFjhZKm0GpXEtI5iq2UqCQlnRCYMU%2BKGziATCpJcELUDOhosKgABu/IeYq/E3v%2BPxhAQhwsMKCo0Rl95Wu%2BILIAgLS0mYJ7hs60ReFQVBxHVrm6ZOUmcrlhr8Ay%2B5mGYXDSgQqhOmttLmGYYZmGlGVxgmvoIHQLyBYRwXGcKcQJW4VDAMmCXYBAY0TTSUm1XeCYvqd97xgA9MDhy2YD35/fGLH7Bk/JUMdNEshwKy0JwJ68H4HBaKQqCcG41jWPqawbJ5fw8KQBCaKjKwANb%2BCe%2BicJIWM03jnC8AoICBNTOOo6QcCwEgaDYpdZAUBAoupOLIDAFwXBmHwdCYsQ3Mfez0RhC0EKcJTotsIIADyDC0Lr/OkFgrVGOIFv4EmDh4FV3MW9qmDIBJWyU01dTs7QeDROCxAQh4WDswQxB4CwesC1QBiOQAangmC%2BkbDIxzIgjkewUiZ/IShqOzuhcPohjGETlj6AH3OQCsqCpA0LsALRGwkhxNx8XmmJY1gBFzdTuw0LiGVMfglyE1ILCMJdFFkAij3os8NPMwzxCXdiD70ExtJ4HR6BvjsCH0rQr5U0%2B2NvC/r9vp%2BLFwKwKKTmx6BHmBewL6McJjpDY7j%2BMcKoAAHOGJu4ZJCHGAMgNUCtpRmD3ITHuldDi4EICQY4FNaQeDFvQPUOx768D5loRUpAGZDWZhwVmP92b/y5jzKmNMVhC0QCgVA2CaSS2lrLfYZd7RMAUEoVo2QFCOmIF4BgdNla0FVuraImttbBwzgbRgBATZm3ZlbMuttcb203s7dmbsPaYgzj7T%2BuN/aBx1qHLYuMI5RxjisOOTBE7J1TunbgvB%2BBZ2wjnaQnj84qHUBbXQSsDBGBQBXGw5ia4Kjxg3IRnAW5tw7siLuES%2B7dE3s4QKI9d75HHoZW%2B58l7ZCvmkDIc8GCFLXhkw%2BjRL65LHjUhox8BiT1XvvepeRGmzBPm0s%2Ba8H5PxzlTJM780YYzZhbf%2BQCQFgPVKE4Ae4%2BECMbnSUR4iCwQAQVYJBKCiC4IwYcLBMscHoISEdAhDD6b%2BEkNKJI9yHmPMeeGchlDf68BobYOhhCBZMIgCLVhJz2GUE4TgkAFVkCFXtBVLgSR7QiUwOMe0qgwGSOkZQWRFstbMAUe40gSjjam3NtorEmjrG8B0Y7PRrtVDu09sYwQvsLbmKDiHDA5KRl2PcQ4%2BOCgk4pzTowDOfjs4SF8bIRQASi6JFLmE7uOzInV3gHXOJ/YElG1UO3I20Q4HJNnPK3uuMD5D2ye4BpegJ7lHaTPcpDRSnFNKH0u%2BTSt79FKca11vSrX9I6W681185hOunoM9Yz8S6vzGeQ7%2B7yOYALmSwBQELDgwqSNKBF4x4ERNpHstBeDMGAvFmchISxLn82IaQpmn83nUM5l83mVzyFmEmX/WtPziFVTVtkEAkggA&#34;&gt;the generated code&lt;/a&gt;!&lt;/p&gt;
+&lt;p&gt;All three major compilers (gcc, clang and MS VC++) inline &lt;code&gt;expand_containers&lt;/code&gt; and everything in leaving only call to &lt;code&gt;fgets&lt;/code&gt;, with a constant for buffer size, if it&amp;rsquo;s known at compile time. (reminder that &lt;a href=&#34;https://en.wikipedia.org/wiki/X86_calling_conventions#x86-64_calling_conventions&#34;&gt;on UNIX-like systems arguments are passed via registers &lt;code&gt;rdi&lt;/code&gt;, &lt;code&gt;rsi&lt;/code&gt;, &lt;code&gt;rdx&lt;/code&gt; etc, while on Windows the registers are &lt;code&gt;rcx&lt;/code&gt;, &lt;code&gt;rdx&lt;/code&gt;, &lt;code&gt;r8&lt;/code&gt; etc.&lt;/a&gt;).&lt;/p&gt;
+&lt;h1 id=&#34;conclusion&#34;&gt;
+    &lt;a href=&#34;#conclusion&#34; class=&#34;anchor&#34;&gt;
+        &lt;svg class=&#34;icon&#34; aria-hidden=&#34;true&#34; focusable=&#34;false&#34; height=&#34;16&#34; version=&#34;1.1&#34; viewBox=&#34;0 0 16 16&#34; width=&#34;16&#34;&gt;
+            &lt;path fill-rule=&#34;evenodd&#34;
+                d=&#34;M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z&#34;&gt;
+            &lt;/path&gt;
+        &lt;/svg&gt;
+    &lt;/a&gt;
+    Conclusion
+&lt;/h1&gt;
+&lt;p&gt;I&amp;rsquo;m not sure I&amp;rsquo;d recommend such wrappers for serious code, especially if the team members are not fluent in C++ template magic.&lt;/p&gt;
+&lt;p&gt;But is it fun? IMHO, yes.&lt;/p&gt;
+
+    </description>
+    </item>
+    
     <item>
     <title>Hashtables &amp; C&#43;&#43; - part 2</title>
     <link>http://elder-george.github.io/post/hashtables-2/</link>
