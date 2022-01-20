@@ -5,7 +5,328 @@
     <description>Recent content on /dev/null</description>
     <generator>Hugo -- gohugo.io</generator>
     <language>en-us</language>
-    <lastBuildDate>Sat, 06 Nov 2021 19:14:50 -0700</lastBuildDate><atom:link href="http://elder-george.github.io/index.xml" rel="self" type="application/rss+xml" />
+    <lastBuildDate>Wed, 19 Jan 2022 19:00:16 -0800</lastBuildDate><atom:link href="http://elder-george.github.io/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+    <title>DIY: Formatting strings without extra allocations</title>
+    <link>http://elder-george.github.io/post/format-string/</link>
+    <pubDate>Wed, 19 Jan 2022 19:00:16 -0800</pubDate>
+    
+    <guid>http://elder-george.github.io/post/format-string/</guid>
+    <description>
+        &lt;h2 id=&#34;whats-the-goal&#34;&gt;
+    &lt;a href=&#34;#whats-the-goal&#34; class=&#34;anchor&#34;&gt;
+        &lt;svg class=&#34;icon&#34; aria-hidden=&#34;true&#34; focusable=&#34;false&#34; height=&#34;16&#34; version=&#34;1.1&#34; viewBox=&#34;0 0 16 16&#34; width=&#34;16&#34;&gt;
+            &lt;path fill-rule=&#34;evenodd&#34;
+                d=&#34;M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z&#34;&gt;
+            &lt;/path&gt;
+        &lt;/svg&gt;
+    &lt;/a&gt;
+    What&amp;#39;s the goal?
+&lt;/h2&gt;
+&lt;p&gt;Basically, to be able to write&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-c++&#34; data-lang=&#34;c++&#34;&gt;    &lt;span style=&#34;color:#66d9ef&#34;&gt;auto&lt;/span&gt; s &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; format(&lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;%0 %1&amp;#34;&lt;/span&gt;, &lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;Hello&amp;#34;&lt;/span&gt;, &lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;World&amp;#34;&lt;/span&gt;);
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;and get &lt;code&gt;Hello World&lt;/code&gt; as a result.&lt;/p&gt;
+&lt;p&gt;And only allocate memory once, enough to fit the final result.,&lt;/p&gt;
+&lt;h2 id=&#34;whats-the-point&#34;&gt;
+    &lt;a href=&#34;#whats-the-point&#34; class=&#34;anchor&#34;&gt;
+        &lt;svg class=&#34;icon&#34; aria-hidden=&#34;true&#34; focusable=&#34;false&#34; height=&#34;16&#34; version=&#34;1.1&#34; viewBox=&#34;0 0 16 16&#34; width=&#34;16&#34;&gt;
+            &lt;path fill-rule=&#34;evenodd&#34;
+                d=&#34;M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z&#34;&gt;
+            &lt;/path&gt;
+        &lt;/svg&gt;
+    &lt;/a&gt;
+    What&amp;#39;s the point?
+&lt;/h2&gt;
+&lt;p&gt;&amp;ldquo;Why not to use …&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;…&lt;code&gt;printf&lt;/code&gt;?&amp;rdquo; - it sucks, really. Non-type safe, without validation (unless your compiler built special support for it… strangely, all of them did… &lt;em&gt;huh&lt;/em&gt;), needs to extract C-style string from C++ &lt;code&gt;string&lt;/code&gt;s and &lt;code&gt;string_view&lt;/code&gt;s etc.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;…&lt;code&gt;&amp;lt;iostream&amp;gt;&lt;/code&gt;?&amp;quot; - iostreams are slow. Sure, they support lots of stuff, including locales and what not, but they are &lt;em&gt;slow&lt;/em&gt;. And allocate a lot of memory here and there. And it&amp;rsquo;s not friendly to localization - you need an ability to reorder arguments in that case.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;…something like &lt;code&gt;QString::arg&lt;/code&gt;?&amp;quot; - actually this article is inspired by Qt&amp;rsquo;s formatting - or rather by its imitation in our codebase. This being said, it&amp;rsquo;s also inefficient (which is what brought me to this post - the formatting stood up high in the CPU profile);&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;…&lt;code&gt;{fmt}&lt;/code&gt;? it&amp;rsquo;s going to be a part of standard soon?&amp;quot; Well yes, you caught me. &lt;code&gt;{fmt}&lt;/code&gt; is great. Use it if you can. At my job we use UTF-16 built-in-house strings&lt;sup id=&#34;fnref:1&#34;&gt;&lt;a href=&#34;#fn:1&#34; class=&#34;footnote-ref&#34; role=&#34;doc-noteref&#34;&gt;1&lt;/a&gt;&lt;/sup&gt;, and &lt;code&gt;{fmt}&lt;/code&gt; can&amp;rsquo;t handle those (AFAIK). But yes, one day…&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;Anyway there wouldn&amp;rsquo;t be a post if there was no problem to solve, right?&lt;/p&gt;
+&lt;h2 id=&#34;off-we-go&#34;&gt;
+    &lt;a href=&#34;#off-we-go&#34; class=&#34;anchor&#34;&gt;
+        &lt;svg class=&#34;icon&#34; aria-hidden=&#34;true&#34; focusable=&#34;false&#34; height=&#34;16&#34; version=&#34;1.1&#34; viewBox=&#34;0 0 16 16&#34; width=&#34;16&#34;&gt;
+            &lt;path fill-rule=&#34;evenodd&#34;
+                d=&#34;M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z&#34;&gt;
+            &lt;/path&gt;
+        &lt;/svg&gt;
+    &lt;/a&gt;
+    Off we go!
+&lt;/h2&gt;
+&lt;p&gt;So, the function signature would look like something like this in pseudocode:&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-c++&#34; data-lang=&#34;c++&#34;&gt;    str &lt;span style=&#34;color:#a6e22e&#34;&gt;format&lt;/span&gt;(str fmt, ...);
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;which in C++ would look like&lt;sup id=&#34;fnref:2&#34;&gt;&lt;a href=&#34;#fn:2&#34; class=&#34;footnote-ref&#34; role=&#34;doc-noteref&#34;&gt;2&lt;/a&gt;&lt;/sup&gt;:&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-c++&#34; data-lang=&#34;c++&#34;&gt;    &lt;span style=&#34;color:#66d9ef&#34;&gt;template&lt;/span&gt;&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&lt;/span&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;typename&lt;/span&gt;... ArgsT&lt;span style=&#34;color:#f92672&#34;&gt;&amp;gt;&lt;/span&gt;
+    std&lt;span style=&#34;color:#f92672&#34;&gt;::&lt;/span&gt;string format(&lt;span style=&#34;color:#66d9ef&#34;&gt;const&lt;/span&gt; std&lt;span style=&#34;color:#f92672&#34;&gt;::&lt;/span&gt;string_view&lt;span style=&#34;color:#f92672&#34;&gt;&amp;amp;&lt;/span&gt; fmt, ArgsT&lt;span style=&#34;color:#f92672&#34;&gt;&amp;amp;&amp;amp;&lt;/span&gt;... args);
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;The implementation will look like this (in pseudocode)&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-c++&#34; data-lang=&#34;c++&#34;&gt;    &lt;span style=&#34;color:#66d9ef&#34;&gt;template&lt;/span&gt;&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&lt;/span&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;typename&lt;/span&gt;... ArgsT&lt;span style=&#34;color:#f92672&#34;&gt;&amp;gt;&lt;/span&gt;
+    std&lt;span style=&#34;color:#f92672&#34;&gt;::&lt;/span&gt;string format(&lt;span style=&#34;color:#66d9ef&#34;&gt;const&lt;/span&gt; std&lt;span style=&#34;color:#f92672&#34;&gt;::&lt;/span&gt;string_view&lt;span style=&#34;color:#f92672&#34;&gt;&amp;amp;&lt;/span&gt; fmt, ArgsT&lt;span style=&#34;color:#f92672&#34;&gt;&amp;amp;&amp;amp;&lt;/span&gt;... args)
+    {
+        &lt;span style=&#34;color:#75715e&#34;&gt;// compute length of all the strings, including substitutions.
+&lt;/span&gt;&lt;span style=&#34;color:#75715e&#34;&gt;&lt;/span&gt;        size_t total_length &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; &lt;span style=&#34;color:#ae81ff&#34;&gt;0&lt;/span&gt;;
+        
+        &lt;span style=&#34;color:#66d9ef&#34;&gt;for&lt;/span&gt; (&lt;span style=&#34;color:#66d9ef&#34;&gt;auto&lt;/span&gt; marker: markers(fmt))
+        {
+            total_length &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; marker.string_before().size();
+            &lt;span style=&#34;color:#66d9ef&#34;&gt;if&lt;/span&gt; (marker.is_ok())
+            {
+                total_length &lt;span style=&#34;color:#f92672&#34;&gt;+=&lt;/span&gt; args[marker.arg_id].size();
+            }
+        }
+
+        std&lt;span style=&#34;color:#f92672&#34;&gt;::&lt;/span&gt;string result;
+        result.reserve(total_length); &lt;span style=&#34;color:#75715e&#34;&gt;// the only place we&amp;#39;re going to allocate!
+&lt;/span&gt;&lt;span style=&#34;color:#75715e&#34;&gt;&lt;/span&gt;
+        &lt;span style=&#34;color:#75715e&#34;&gt;// concatenate the elements
+&lt;/span&gt;&lt;span style=&#34;color:#75715e&#34;&gt;&lt;/span&gt;        &lt;span style=&#34;color:#66d9ef&#34;&gt;for&lt;/span&gt; (&lt;span style=&#34;color:#66d9ef&#34;&gt;auto&lt;/span&gt; marker: markers(fmt))
+        {
+            result &lt;span style=&#34;color:#f92672&#34;&gt;+=&lt;/span&gt; marker.string_before();
+            &lt;span style=&#34;color:#66d9ef&#34;&gt;if&lt;/span&gt; (marker.is_ok())
+            {
+                result &lt;span style=&#34;color:#f92672&#34;&gt;+=&lt;/span&gt; args[marker.arg_id];
+            }
+        }
+
+        &lt;span style=&#34;color:#66d9ef&#34;&gt;return&lt;/span&gt; result;
+    }
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;The downside here is that we traverse the &lt;code&gt;fmt&lt;/code&gt; twice. But otherwise seems to be efficient, no?&lt;/p&gt;
+&lt;p&gt;There&amp;rsquo;re gotchas though:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;we need to be able to find the markers efficiently (and allow to still use &lt;code&gt;%%&lt;/code&gt; as an escaped &lt;code&gt;%&lt;/code&gt;);&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;to my knowledge, there&amp;rsquo;s no standard facility to access a value in a parameter pack by index (unless it&amp;rsquo;s known in compile time);&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;very likely, &lt;code&gt;ArgsT...&lt;/code&gt; will contain a mix-n-match of string literals, C-strings, std::strings, std::string_views etc. We need to handle them uniformly. Ideally, we also need to handle them efficiently - e.g. string literals don&amp;rsquo;t need their length to be computed at run-time, since it&amp;rsquo;s known at compile-time.&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h2 id=&#34;-marks-the-spot&#34;&gt;
+    &lt;a href=&#34;#-marks-the-spot&#34; class=&#34;anchor&#34;&gt;
+        &lt;svg class=&#34;icon&#34; aria-hidden=&#34;true&#34; focusable=&#34;false&#34; height=&#34;16&#34; version=&#34;1.1&#34; viewBox=&#34;0 0 16 16&#34; width=&#34;16&#34;&gt;
+            &lt;path fill-rule=&#34;evenodd&#34;
+                d=&#34;M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z&#34;&gt;
+            &lt;/path&gt;
+        &lt;/svg&gt;
+    &lt;/a&gt;
+    % marks the spot
+&lt;/h2&gt;
+&lt;p&gt;Let&amp;rsquo;s start with iteration over the markers. I&amp;rsquo;m too lazy to implement proper STL-style iterators to be used with &lt;code&gt;for&lt;/code&gt; loop, so let&amp;rsquo;s do an approach with callbacks:&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-c++&#34; data-lang=&#34;c++&#34;&gt;
+    &lt;span style=&#34;color:#66d9ef&#34;&gt;struct&lt;/span&gt; &lt;span style=&#34;color:#a6e22e&#34;&gt;marker_info&lt;/span&gt; {
+        std&lt;span style=&#34;color:#f92672&#34;&gt;::&lt;/span&gt;string_view literal;
+        &lt;span style=&#34;color:#66d9ef&#34;&gt;int&lt;/span&gt; arg_number;
+        std&lt;span style=&#34;color:#f92672&#34;&gt;::&lt;/span&gt;string_view rest;
+    };
+
+    &lt;span style=&#34;color:#66d9ef&#34;&gt;template&lt;/span&gt;&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&lt;/span&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;typename&lt;/span&gt; Func&lt;span style=&#34;color:#f92672&#34;&gt;&amp;gt;&lt;/span&gt;
+    &lt;span style=&#34;color:#66d9ef&#34;&gt;constexpr&lt;/span&gt; &lt;span style=&#34;color:#66d9ef&#34;&gt;void&lt;/span&gt; foreach_marker(std&lt;span style=&#34;color:#f92672&#34;&gt;::&lt;/span&gt;string_view fmt, Func func)
+    {
+        &lt;span style=&#34;color:#66d9ef&#34;&gt;while&lt;/span&gt;(&lt;span style=&#34;color:#f92672&#34;&gt;!&lt;/span&gt;fmt.empty())
+        {
+            &lt;span style=&#34;color:#66d9ef&#34;&gt;auto&lt;/span&gt; [ literal, arg_number, rest ] &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; find_marker(fmt);
+            func(literal, arg_number);
+            fmt &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; rest;
+        }
+    }
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;Finding markers is a bit trickier but still pretty clean:&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-c++&#34; data-lang=&#34;c++&#34;&gt;    &lt;span style=&#34;color:#66d9ef&#34;&gt;constexpr&lt;/span&gt; marker_info &lt;span style=&#34;color:#a6e22e&#34;&gt;find_marker&lt;/span&gt;(&lt;span style=&#34;color:#66d9ef&#34;&gt;const&lt;/span&gt; std&lt;span style=&#34;color:#f92672&#34;&gt;::&lt;/span&gt;string_view&lt;span style=&#34;color:#f92672&#34;&gt;&amp;amp;&lt;/span&gt; format)
+    {
+        &lt;span style=&#34;color:#66d9ef&#34;&gt;for&lt;/span&gt; (&lt;span style=&#34;color:#66d9ef&#34;&gt;auto&lt;/span&gt; i &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; &lt;span style=&#34;color:#ae81ff&#34;&gt;0&lt;/span&gt;; i &lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&lt;/span&gt; format.size(); &lt;span style=&#34;color:#f92672&#34;&gt;++&lt;/span&gt;i)
+        {
+            &lt;span style=&#34;color:#66d9ef&#34;&gt;if&lt;/span&gt; (format[i] &lt;span style=&#34;color:#f92672&#34;&gt;==&lt;/span&gt; &lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#39;%&amp;#39;&lt;/span&gt;)
+            {
+                &lt;span style=&#34;color:#66d9ef&#34;&gt;auto&lt;/span&gt; literal_end &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; i&lt;span style=&#34;color:#f92672&#34;&gt;++&lt;/span&gt;; &lt;span style=&#34;color:#75715e&#34;&gt;// `literal_end` points at &amp;#39;%&amp;#39;, `i` at next char.
+&lt;/span&gt;&lt;span style=&#34;color:#75715e&#34;&gt;&lt;/span&gt;                &lt;span style=&#34;color:#66d9ef&#34;&gt;auto&lt;/span&gt; c &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; format[i&lt;span style=&#34;color:#f92672&#34;&gt;++&lt;/span&gt;];   &lt;span style=&#34;color:#75715e&#34;&gt;// `c` is character after &amp;#39;%&amp;#39;, `i` is immediiately after the marker
+&lt;/span&gt;&lt;span style=&#34;color:#75715e&#34;&gt;&lt;/span&gt;                &lt;span style=&#34;color:#66d9ef&#34;&gt;if&lt;/span&gt; (c &lt;span style=&#34;color:#f92672&#34;&gt;==&lt;/span&gt; &lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#39;%&amp;#39;&lt;/span&gt;)   &lt;span style=&#34;color:#75715e&#34;&gt;// escaped &amp;#39;%&amp;#39;
+&lt;/span&gt;&lt;span style=&#34;color:#75715e&#34;&gt;&lt;/span&gt;                {
+                    &lt;span style=&#34;color:#66d9ef&#34;&gt;return&lt;/span&gt; {
+                            format.substr(&lt;span style=&#34;color:#ae81ff&#34;&gt;0&lt;/span&gt;, literal_end &lt;span style=&#34;color:#f92672&#34;&gt;+&lt;/span&gt; &lt;span style=&#34;color:#ae81ff&#34;&gt;1&lt;/span&gt;), &lt;span style=&#34;color:#75715e&#34;&gt;// literal including first &amp;#39;%&amp;#39; 
+&lt;/span&gt;&lt;span style=&#34;color:#75715e&#34;&gt;&lt;/span&gt;                            &lt;span style=&#34;color:#f92672&#34;&gt;-&lt;/span&gt;&lt;span style=&#34;color:#ae81ff&#34;&gt;1&lt;/span&gt;, &lt;span style=&#34;color:#75715e&#34;&gt;// invalid argument id - nothing to substitute
+&lt;/span&gt;&lt;span style=&#34;color:#75715e&#34;&gt;&lt;/span&gt;                            format.substr(i) &lt;span style=&#34;color:#75715e&#34;&gt;// everything after the marker
+&lt;/span&gt;&lt;span style=&#34;color:#75715e&#34;&gt;&lt;/span&gt;                        };
+                }
+                &lt;span style=&#34;color:#66d9ef&#34;&gt;else&lt;/span&gt; &lt;span style=&#34;color:#66d9ef&#34;&gt;if&lt;/span&gt; (&lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#39;0&amp;#39;&lt;/span&gt; &lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;=&lt;/span&gt; c &lt;span style=&#34;color:#f92672&#34;&gt;&amp;amp;&amp;amp;&lt;/span&gt; c &lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;=&lt;/span&gt; &lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#39;9&amp;#39;&lt;/span&gt;)
+                {
+                    &lt;span style=&#34;color:#66d9ef&#34;&gt;return&lt;/span&gt; {
+                            format.substr(&lt;span style=&#34;color:#ae81ff&#34;&gt;0&lt;/span&gt;, literal_end), &lt;span style=&#34;color:#75715e&#34;&gt;// text before marker
+&lt;/span&gt;&lt;span style=&#34;color:#75715e&#34;&gt;&lt;/span&gt;                            c &lt;span style=&#34;color:#f92672&#34;&gt;-&lt;/span&gt; &lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#39;0&amp;#39;&lt;/span&gt;, &lt;span style=&#34;color:#75715e&#34;&gt;// index of an element in the parameter pack
+&lt;/span&gt;&lt;span style=&#34;color:#75715e&#34;&gt;&lt;/span&gt;                            format.substr(i)    &lt;span style=&#34;color:#75715e&#34;&gt;// everything after the marker
+&lt;/span&gt;&lt;span style=&#34;color:#75715e&#34;&gt;&lt;/span&gt;                        };
+                }
+            }
+        }
+        &lt;span style=&#34;color:#75715e&#34;&gt;// no marker is found, return the whole `format`, invalid arg.id and empty `rest`.
+&lt;/span&gt;&lt;span style=&#34;color:#75715e&#34;&gt;&lt;/span&gt;        &lt;span style=&#34;color:#66d9ef&#34;&gt;return&lt;/span&gt; { format, &lt;span style=&#34;color:#f92672&#34;&gt;-&lt;/span&gt;&lt;span style=&#34;color:#ae81ff&#34;&gt;1&lt;/span&gt;, format.substr(&lt;span style=&#34;color:#ae81ff&#34;&gt;0&lt;/span&gt;,&lt;span style=&#34;color:#ae81ff&#34;&gt;0&lt;/span&gt;) };
+    }
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;Here we cut some corners:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;we&amp;rsquo;re lucky to have &lt;code&gt;&#39;%&#39;&lt;/code&gt; as both escaped character &lt;em&gt;and&lt;/em&gt; escaping character. Otherwise the code would be a bit more complex;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;we only allow indices in 0..9, i.e. no more than 10 arguments. It&amp;rsquo;s trivial to extend it (just check if more characters ahead are digits), but I omitted that for simplicity sake.&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h2 id=&#34;parameter-pack-as-array-really&#34;&gt;
+    &lt;a href=&#34;#parameter-pack-as-array-really&#34; class=&#34;anchor&#34;&gt;
+        &lt;svg class=&#34;icon&#34; aria-hidden=&#34;true&#34; focusable=&#34;false&#34; height=&#34;16&#34; version=&#34;1.1&#34; viewBox=&#34;0 0 16 16&#34; width=&#34;16&#34;&gt;
+            &lt;path fill-rule=&#34;evenodd&#34;
+                d=&#34;M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z&#34;&gt;
+            &lt;/path&gt;
+        &lt;/svg&gt;
+    &lt;/a&gt;
+    Parameter pack as array? Really?
+&lt;/h2&gt;
+&lt;p&gt;OK, now we need to access argument in the parameter pack by its index (in 0..9 range). How to do that?&lt;/p&gt;
+&lt;p&gt;If we knew the index at compile-time, we could use something like &lt;code&gt;get&amp;lt;I&amp;gt;(make_tuple(args...))&lt;/code&gt;. But we need to use indices at run-time.&lt;/p&gt;
+&lt;p&gt;I&amp;rsquo;m still new to the C++ template magic, so I did it in a pretty straightforward and stupid way - finding &lt;code&gt;n&lt;/code&gt;-th element by skipping &lt;code&gt;n-1&lt;/code&gt; elements (good thing, compilers these days are fast):&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-c++&#34; data-lang=&#34;c++&#34;&gt;
+    &lt;span style=&#34;color:#66d9ef&#34;&gt;template&lt;/span&gt;&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&lt;/span&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;int&lt;/span&gt; N&lt;span style=&#34;color:#f92672&#34;&gt;&amp;gt;&lt;/span&gt;
+    std&lt;span style=&#34;color:#f92672&#34;&gt;::&lt;/span&gt;string_view nth(&lt;span style=&#34;color:#66d9ef&#34;&gt;int&lt;/span&gt;) {
+        &lt;span style=&#34;color:#66d9ef&#34;&gt;return&lt;/span&gt; &lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;&amp;#34;&lt;/span&gt;;
+    }    
+
+    &lt;span style=&#34;color:#66d9ef&#34;&gt;template&lt;/span&gt;&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&lt;/span&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;int&lt;/span&gt; N &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; &lt;span style=&#34;color:#ae81ff&#34;&gt;0&lt;/span&gt;, &lt;span style=&#34;color:#66d9ef&#34;&gt;typename&lt;/span&gt; ArgT, &lt;span style=&#34;color:#66d9ef&#34;&gt;typename&lt;/span&gt;... ArgsT&lt;span style=&#34;color:#f92672&#34;&gt;&amp;gt;&lt;/span&gt;
+    std&lt;span style=&#34;color:#f92672&#34;&gt;::&lt;/span&gt;string_view nth(&lt;span style=&#34;color:#66d9ef&#34;&gt;int&lt;/span&gt; i, ArgT&lt;span style=&#34;color:#f92672&#34;&gt;&amp;amp;&amp;amp;&lt;/span&gt; arg, ArgsT&lt;span style=&#34;color:#f92672&#34;&gt;&amp;amp;&amp;amp;&lt;/span&gt;... args)
+    {
+        &lt;span style=&#34;color:#66d9ef&#34;&gt;if&lt;/span&gt; (i &lt;span style=&#34;color:#f92672&#34;&gt;==&lt;/span&gt; N)
+        {
+            &lt;span style=&#34;color:#66d9ef&#34;&gt;return&lt;/span&gt; &lt;span style=&#34;color:#a6e22e&#34;&gt;to_string_view&lt;/span&gt;(std&lt;span style=&#34;color:#f92672&#34;&gt;::&lt;/span&gt;forward&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&lt;/span&gt;ArgT&lt;span style=&#34;color:#f92672&#34;&gt;&amp;gt;&lt;/span&gt;(arg));
+        }
+        &lt;span style=&#34;color:#66d9ef&#34;&gt;return&lt;/span&gt; nth&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&lt;/span&gt;N&lt;span style=&#34;color:#f92672&#34;&gt;+&lt;/span&gt;&lt;span style=&#34;color:#ae81ff&#34;&gt;1&lt;/span&gt;, ArgsT...&lt;span style=&#34;color:#f92672&#34;&gt;&amp;gt;&lt;/span&gt;(i, std&lt;span style=&#34;color:#f92672&#34;&gt;::&lt;/span&gt;forward&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&lt;/span&gt;ArgsT&lt;span style=&#34;color:#f92672&#34;&gt;&amp;gt;&lt;/span&gt;(args)...);
+    }
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;and &lt;code&gt;to_string_view&lt;/code&gt; will be overloaded basing on the argument:&lt;/p&gt;
+&lt;p&gt;For string literal, compiler knows size already, so we can use it immediately&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-c++&#34; data-lang=&#34;c++&#34;&gt;    &lt;span style=&#34;color:#66d9ef&#34;&gt;template&lt;/span&gt;&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&lt;/span&gt;size_t N&lt;span style=&#34;color:#f92672&#34;&gt;&amp;gt;&lt;/span&gt;
+    std&lt;span style=&#34;color:#f92672&#34;&gt;::&lt;/span&gt;string_view to_string_view(&lt;span style=&#34;color:#66d9ef&#34;&gt;const&lt;/span&gt; &lt;span style=&#34;color:#66d9ef&#34;&gt;char&lt;/span&gt; (&lt;span style=&#34;color:#f92672&#34;&gt;&amp;amp;&lt;/span&gt;s)[N])
+    {
+        &lt;span style=&#34;color:#75715e&#34;&gt;// C-style arrays have terminating &amp;#39;\0&amp;#39; that we don&amp;#39;t need.
+&lt;/span&gt;&lt;span style=&#34;color:#75715e&#34;&gt;&lt;/span&gt;        &lt;span style=&#34;color:#66d9ef&#34;&gt;return&lt;/span&gt; {s, N&lt;span style=&#34;color:#f92672&#34;&gt;-&lt;/span&gt;&lt;span style=&#34;color:#ae81ff&#34;&gt;1&lt;/span&gt;};
+    }
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;but then we need to distinguish it somehow from &lt;code&gt;char *&lt;/code&gt;. The best way to force compiler into it is to make a template specification that is more complex than the one for literal (above). I stole this one from &lt;a href=&#34;https://android.googlesource.com/platform/external/qemu/+/emu-master-dev/android/android-emu-base/android/base/StringView.h#106&#34;&gt;a string view implementation in the Android codebase&lt;/a&gt;:&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-c++&#34; data-lang=&#34;c++&#34;&gt;    &lt;span style=&#34;color:#66d9ef&#34;&gt;template&lt;/span&gt;&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&lt;/span&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;typename&lt;/span&gt; CharT, &lt;span style=&#34;color:#66d9ef&#34;&gt;typename&lt;/span&gt; &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; std&lt;span style=&#34;color:#f92672&#34;&gt;::&lt;/span&gt;enable_if_t&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&lt;/span&gt;std&lt;span style=&#34;color:#f92672&#34;&gt;::&lt;/span&gt;is_same_v&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&lt;/span&gt;CharT, &lt;span style=&#34;color:#66d9ef&#34;&gt;char&lt;/span&gt;&lt;span style=&#34;color:#f92672&#34;&gt;&amp;gt;&amp;gt;&amp;gt;&lt;/span&gt;
+    std&lt;span style=&#34;color:#f92672&#34;&gt;::&lt;/span&gt;string_view to_string_view(&lt;span style=&#34;color:#66d9ef&#34;&gt;const&lt;/span&gt; CharT&lt;span style=&#34;color:#f92672&#34;&gt;*&lt;/span&gt; &lt;span style=&#34;color:#66d9ef&#34;&gt;const&lt;/span&gt; &lt;span style=&#34;color:#f92672&#34;&gt;&amp;amp;&lt;/span&gt;s)
+    {
+        &lt;span style=&#34;color:#66d9ef&#34;&gt;return&lt;/span&gt; s;
+    }
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;Yuck!…&lt;/p&gt;
+&lt;p&gt;FInally, we need ones for &lt;code&gt;std::string&lt;/code&gt; and &lt;code&gt;std::string_view&lt;/code&gt;. They need to be templates too, otherwise the implementations above will be ignored. The implementations are trivial though:&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-c++&#34; data-lang=&#34;c++&#34;&gt;    &lt;span style=&#34;color:#66d9ef&#34;&gt;template&lt;/span&gt;&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&lt;/span&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;typename&lt;/span&gt; &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; &lt;span style=&#34;color:#66d9ef&#34;&gt;char&lt;/span&gt;&lt;span style=&#34;color:#f92672&#34;&gt;&amp;gt;&lt;/span&gt;
+    std&lt;span style=&#34;color:#f92672&#34;&gt;::&lt;/span&gt;string_view to_string_view(&lt;span style=&#34;color:#66d9ef&#34;&gt;const&lt;/span&gt; std&lt;span style=&#34;color:#f92672&#34;&gt;::&lt;/span&gt;string&lt;span style=&#34;color:#f92672&#34;&gt;&amp;amp;&lt;/span&gt; s){
+        &lt;span style=&#34;color:#66d9ef&#34;&gt;return&lt;/span&gt; s;
+    }
+
+    &lt;span style=&#34;color:#66d9ef&#34;&gt;template&lt;/span&gt;&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&lt;/span&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;typename&lt;/span&gt; &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; &lt;span style=&#34;color:#66d9ef&#34;&gt;char&lt;/span&gt;&lt;span style=&#34;color:#f92672&#34;&gt;&amp;gt;&lt;/span&gt;
+    std&lt;span style=&#34;color:#f92672&#34;&gt;::&lt;/span&gt;string_view to_string_view(&lt;span style=&#34;color:#66d9ef&#34;&gt;const&lt;/span&gt; std&lt;span style=&#34;color:#f92672&#34;&gt;::&lt;/span&gt;string_view&lt;span style=&#34;color:#f92672&#34;&gt;&amp;amp;&lt;/span&gt; s){
+        &lt;span style=&#34;color:#66d9ef&#34;&gt;return&lt;/span&gt; s;
+    }
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;Note: we don&amp;rsquo;t really need the &lt;code&gt;to_string_view&lt;/code&gt; functions above: we could easily implement &lt;code&gt;nth&lt;/code&gt; as&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-c++&#34; data-lang=&#34;c++&#34;&gt;    &lt;span style=&#34;color:#66d9ef&#34;&gt;template&lt;/span&gt;&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&lt;/span&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;int&lt;/span&gt; N &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; &lt;span style=&#34;color:#ae81ff&#34;&gt;0&lt;/span&gt;, &lt;span style=&#34;color:#66d9ef&#34;&gt;typename&lt;/span&gt; ArgT, &lt;span style=&#34;color:#66d9ef&#34;&gt;typename&lt;/span&gt;... ArgsT&lt;span style=&#34;color:#f92672&#34;&gt;&amp;gt;&lt;/span&gt;
+    std&lt;span style=&#34;color:#f92672&#34;&gt;::&lt;/span&gt;string_view nth(&lt;span style=&#34;color:#66d9ef&#34;&gt;int&lt;/span&gt; i, ArgT&lt;span style=&#34;color:#f92672&#34;&gt;&amp;amp;&amp;amp;&lt;/span&gt; arg, ArgsT&lt;span style=&#34;color:#f92672&#34;&gt;&amp;amp;&amp;amp;&lt;/span&gt;... args)
+    {
+        &lt;span style=&#34;color:#66d9ef&#34;&gt;if&lt;/span&gt; (i &lt;span style=&#34;color:#f92672&#34;&gt;==&lt;/span&gt; N)
+        {
+            &lt;span style=&#34;color:#66d9ef&#34;&gt;return&lt;/span&gt; arg;
+        }
+        &lt;span style=&#34;color:#66d9ef&#34;&gt;return&lt;/span&gt; nth&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&lt;/span&gt;N&lt;span style=&#34;color:#f92672&#34;&gt;+&lt;/span&gt;&lt;span style=&#34;color:#ae81ff&#34;&gt;1&lt;/span&gt;, ArgsT...&lt;span style=&#34;color:#f92672&#34;&gt;&amp;gt;&lt;/span&gt;(i, std&lt;span style=&#34;color:#f92672&#34;&gt;::&lt;/span&gt;forward&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&lt;/span&gt;ArgsT&lt;span style=&#34;color:#f92672&#34;&gt;&amp;gt;&lt;/span&gt;(args)...);
+    }
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;The downside here would be that for string literals length would be computed at runtime via &lt;code&gt;strlen&lt;/code&gt; or equivalent. Which may be OK in many cases. But&lt;/p&gt;
+&lt;h2 id=&#34;final-assembly&#34;&gt;
+    &lt;a href=&#34;#final-assembly&#34; class=&#34;anchor&#34;&gt;
+        &lt;svg class=&#34;icon&#34; aria-hidden=&#34;true&#34; focusable=&#34;false&#34; height=&#34;16&#34; version=&#34;1.1&#34; viewBox=&#34;0 0 16 16&#34; width=&#34;16&#34;&gt;
+            &lt;path fill-rule=&#34;evenodd&#34;
+                d=&#34;M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z&#34;&gt;
+            &lt;/path&gt;
+        &lt;/svg&gt;
+    &lt;/a&gt;
+    Final assembly
+&lt;/h2&gt;
+&lt;p&gt;Having all the pieces in place, we can write final version of &lt;code&gt;format&lt;/code&gt;:&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-c++&#34; data-lang=&#34;c++&#34;&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;template&lt;/span&gt;&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&lt;/span&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;typename&lt;/span&gt;... ArgsT&lt;span style=&#34;color:#f92672&#34;&gt;&amp;gt;&lt;/span&gt;
+std&lt;span style=&#34;color:#f92672&#34;&gt;::&lt;/span&gt;string format(&lt;span style=&#34;color:#66d9ef&#34;&gt;const&lt;/span&gt; std&lt;span style=&#34;color:#f92672&#34;&gt;::&lt;/span&gt;string_view&lt;span style=&#34;color:#f92672&#34;&gt;&amp;amp;&lt;/span&gt; fmt, ArgsT&lt;span style=&#34;color:#f92672&#34;&gt;&amp;amp;&amp;amp;&lt;/span&gt;... args)
+{
+    &lt;span style=&#34;color:#66d9ef&#34;&gt;using&lt;/span&gt; &lt;span style=&#34;color:#66d9ef&#34;&gt;namespace&lt;/span&gt; details;
+    &lt;span style=&#34;color:#75715e&#34;&gt;// compute length of all the strings, including substitutions.
+&lt;/span&gt;&lt;span style=&#34;color:#75715e&#34;&gt;&lt;/span&gt;    size_t total_length &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; &lt;span style=&#34;color:#ae81ff&#34;&gt;0&lt;/span&gt;;
+    foreach_marker(fmt, [&lt;span style=&#34;color:#f92672&#34;&gt;&amp;amp;&lt;/span&gt;total_length, &lt;span style=&#34;color:#f92672&#34;&gt;&amp;amp;&lt;/span&gt;args...](&lt;span style=&#34;color:#66d9ef&#34;&gt;auto&lt;/span&gt;&lt;span style=&#34;color:#f92672&#34;&gt;&amp;amp;&amp;amp;&lt;/span&gt; s, &lt;span style=&#34;color:#66d9ef&#34;&gt;int&lt;/span&gt; arg_id) {
+        total_length &lt;span style=&#34;color:#f92672&#34;&gt;+=&lt;/span&gt; s.size();
+        &lt;span style=&#34;color:#66d9ef&#34;&gt;if&lt;/span&gt; (arg_id &lt;span style=&#34;color:#f92672&#34;&gt;&amp;gt;=&lt;/span&gt; &lt;span style=&#34;color:#ae81ff&#34;&gt;0&lt;/span&gt;)
+        {
+            total_length &lt;span style=&#34;color:#f92672&#34;&gt;+=&lt;/span&gt; nth(arg_id, std&lt;span style=&#34;color:#f92672&#34;&gt;::&lt;/span&gt;forward&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&lt;/span&gt;ArgsT&lt;span style=&#34;color:#f92672&#34;&gt;&amp;gt;&lt;/span&gt;(args)...).size();
+        }
+    });
+
+    std&lt;span style=&#34;color:#f92672&#34;&gt;::&lt;/span&gt;string result;
+    result.reserve(total_length);
+
+    &lt;span style=&#34;color:#75715e&#34;&gt;// concatenate the elements
+&lt;/span&gt;&lt;span style=&#34;color:#75715e&#34;&gt;&lt;/span&gt;    foreach_marker(fmt, [&lt;span style=&#34;color:#f92672&#34;&gt;&amp;amp;&lt;/span&gt;result, &lt;span style=&#34;color:#f92672&#34;&gt;&amp;amp;&lt;/span&gt;args...](&lt;span style=&#34;color:#66d9ef&#34;&gt;auto&lt;/span&gt;&lt;span style=&#34;color:#f92672&#34;&gt;&amp;amp;&amp;amp;&lt;/span&gt; s, &lt;span style=&#34;color:#66d9ef&#34;&gt;int&lt;/span&gt; arg_id) {
+        result.append(s);
+        &lt;span style=&#34;color:#66d9ef&#34;&gt;if&lt;/span&gt; (arg_id &lt;span style=&#34;color:#f92672&#34;&gt;&amp;gt;=&lt;/span&gt; &lt;span style=&#34;color:#ae81ff&#34;&gt;0&lt;/span&gt;)
+        {
+            result.append(nth(arg_id, std&lt;span style=&#34;color:#f92672&#34;&gt;::&lt;/span&gt;forward&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&lt;/span&gt;ArgsT&lt;span style=&#34;color:#f92672&#34;&gt;&amp;gt;&lt;/span&gt;(args)...));
+        }
+    });
+
+    &lt;span style=&#34;color:#66d9ef&#34;&gt;return&lt;/span&gt; result;
+}
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;We can verify that the memory is allocated at most once by overriding &lt;code&gt;new&lt;/code&gt; and &lt;code&gt;delete&lt;/code&gt; operators (which I did: see &lt;a href=&#34;https://github.com/elder-george/code-snippets/blob/main/cpp/format_to_string.cpp#L176&#34;&gt;the full code&lt;/a&gt;).&lt;/p&gt;
+&lt;h2 id=&#34;homework&#34;&gt;
+    &lt;a href=&#34;#homework&#34; class=&#34;anchor&#34;&gt;
+        &lt;svg class=&#34;icon&#34; aria-hidden=&#34;true&#34; focusable=&#34;false&#34; height=&#34;16&#34; version=&#34;1.1&#34; viewBox=&#34;0 0 16 16&#34; width=&#34;16&#34;&gt;
+            &lt;path fill-rule=&#34;evenodd&#34;
+                d=&#34;M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z&#34;&gt;
+            &lt;/path&gt;
+        &lt;/svg&gt;
+    &lt;/a&gt;
+    Homework
+&lt;/h2&gt;
+&lt;p&gt;What a possible areas of improvement here? We could:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;allowing more than 10 arguments (see above);&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;add validation - at the very least enforce that the maximum argument id in the markers is not greater than number of elements in the parameter pack;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;making code work with &lt;code&gt;char16_t&lt;/code&gt; and &lt;code&gt;char32_t&lt;/code&gt; (nothing hard, again);&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;allow formatting custom types (would be similar to &lt;code&gt;to_string_view&lt;/code&gt; overloads, although it&amp;rsquo;ll probably need to actually be &lt;code&gt;to_string&lt;/code&gt;)&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;allow markers to have format specifiers (similar to how &lt;code&gt;{fmt}&lt;/code&gt; does that).&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;But again, maybe you should use production-quality libraries instead 😉.&lt;/p&gt;
+&lt;section class=&#34;footnotes&#34; role=&#34;doc-endnotes&#34;&gt;
+&lt;hr&gt;
+&lt;ol&gt;
+&lt;li id=&#34;fn:1&#34; role=&#34;doc-endnote&#34;&gt;
+&lt;p&gt;implementation below will use ASCII/UTF-8 strings too, but it&amp;rsquo;s trivial to upgrade it to other encodings.&amp;#160;&lt;a href=&#34;#fnref:1&#34; class=&#34;footnote-backref&#34; role=&#34;doc-backlink&#34;&gt;&amp;#x21a9;&amp;#xfe0e;&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li id=&#34;fn:2&#34; role=&#34;doc-endnote&#34;&gt;
+&lt;p&gt;many people prefer to pass &lt;code&gt;string_view&lt;/code&gt;s by value. Unfortunately, Windows ABI doesn&amp;rsquo;t support passing a parameter via multiple registers, so I keep passing them by const reference, sorry.&amp;#160;&lt;a href=&#34;#fnref:2&#34; class=&#34;footnote-backref&#34; role=&#34;doc-backlink&#34;&gt;&amp;#x21a9;&amp;#xfe0e;&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/section&gt;
+
+    </description>
+    </item>
+    
     <item>
     <title>Safe Buffers</title>
     <link>http://elder-george.github.io/post/safe-buffers/</link>

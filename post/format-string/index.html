@@ -1,0 +1,529 @@
+<!DOCTYPE html>
+<html lang="en-us">
+    
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="theme-color" content="dark">
+    <title>DIY: Formatting strings without extra allocations | /dev/null</title>
+
+    
+    
+    
+    <meta property="og:site_name" content="" />
+    <meta property="og:title" content="DIY: Formatting strings without extra allocations | /dev/null"/>
+    <meta itemprop="name" content="DIY: Formatting strings without extra allocations | /dev/null" />
+    <meta name="twitter:title" content="DIY: Formatting strings without extra allocations | /dev/null" />
+    <meta name="application-name" content="DIY: Formatting strings without extra allocations | /dev/null" />
+
+
+    <meta name="description" content="" />
+    <meta name="twitter:description" content=""/>
+    <meta itemprop="description" content=""/>
+    <meta property="og:description" content="" />
+
+    
+
+<meta property="og:type" content="article" />
+<meta property="article:publisher" content="" />
+<meta property="og:article:published_time" content=2022-01-19T19:00:16-0800 />
+<meta property="article:published_time" content=2022-01-19T19:00:16-0800 />
+
+
+
+
+
+<script defer type="application/ld+json">
+  {
+    "@context": "http://schema.org",
+    "@type": "Article",
+    "headline": "DIY: Formatting strings without extra allocations",
+    "author": {
+      "@type": "Person",
+      "name": ""
+    },
+    "datePublished": "2022-01-19",
+    "description": "",
+    "wordCount":  1319 ,
+    "mainEntityOfPage": "True",
+    "dateModified": "2022-01-19",
+    "publisher": {
+      "@type": "Organization",
+      "name": "",
+      "logo": {
+        "@type": "imageObject",
+        "url": "http:\/\/elder-george.github.io\/favicon.ico"
+      }
+    }
+  }
+</script>
+
+
+
+    <link rel="shortcut icon" type="image/x-icon" href="/favicon.ico" />
+    
+    <link rel="stylesheet" href="/sass/main.min.ab99ff095f832511e24ffb2fba2b51ad473b2f7e9301d674eba2c6c3a6e8bd81.css">
+    
+</head>
+    <script>
+    (function() {
+        const colorSchemeKey = 'ThemeColorScheme';
+        const colorSchemeItem = localStorage.getItem(colorSchemeKey);
+        const supportDarkMode = window.matchMedia('(prefers-color-scheme: dark)').matches === true;
+
+        if (colorSchemeItem == 'dark' || colorSchemeItem === 'auto' && supportDarkMode) {
+            
+
+            document.documentElement.dataset.userColorScheme = 'dark';
+        } else {
+            document.documentElement.dataset.userColorScheme = 'light';
+        }
+    })();
+</script>
+
+    <body class="dark">
+        <nav class="navbar">
+    <div class="container">
+        <div class="flex">
+            <div>
+                <a class="brand" href="/">
+                    
+                    
+                    /dev/null
+                    </a>
+            </div>
+            <div class="flex">
+                
+                <button id="dark-mode-button">
+                  <svg class="light" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" aria-hidden="true" focusable="false" width="1em" height="1em" style="-ms-transform: rotate(360deg); -webkit-transform: rotate(360deg); transform: rotate(360deg);" preserveAspectRatio="xMidYMid meet" viewBox="0 0 36 36"><path fill="#FFD983" d="M30.312.776C32 19 20 32 .776 30.312c8.199 7.717 21.091 7.588 29.107-.429C37.9 21.867 38.03 8.975 30.312.776z"/><path d="M30.705 15.915a1.163 1.163 0 1 0 1.643 1.641a1.163 1.163 0 0 0-1.643-1.641zm-16.022 14.38a1.74 1.74 0 0 0 0 2.465a1.742 1.742 0 1 0 0-2.465zm13.968-2.147a2.904 2.904 0 0 1-4.108 0a2.902 2.902 0 0 1 0-4.107a2.902 2.902 0 0 1 4.108 0a2.902 2.902 0 0 1 0 4.107z" fill="#FFCC4D"/><rect x="0" y="0" width="36" height="36" fill="rgba(0, 0, 0, 0)" /></svg>
+                  <svg class="dark" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" aria-hidden="true" focusable="false" width="1em" height="1em" style="-ms-transform: rotate(360deg); -webkit-transform: rotate(360deg); transform: rotate(360deg);" preserveAspectRatio="xMidYMid meet" viewBox="0 0 36 36"><path fill="#FFD983" d="M16 2s0-2 2-2s2 2 2 2v2s0 2-2 2s-2-2-2-2V2zm18 14s2 0 2 2s-2 2-2 2h-2s-2 0-2-2s2-2 2-2h2zM4 16s2 0 2 2s-2 2-2 2H2s-2 0-2-2s2-2 2-2h2zm5.121-8.707s1.414 1.414 0 2.828s-2.828 0-2.828 0L4.878 8.708s-1.414-1.414 0-2.829c1.415-1.414 2.829 0 2.829 0l1.414 1.414zm21 21s1.414 1.414 0 2.828s-2.828 0-2.828 0l-1.414-1.414s-1.414-1.414 0-2.828s2.828 0 2.828 0l1.414 1.414zm-.413-18.172s-1.414 1.414-2.828 0s0-2.828 0-2.828l1.414-1.414s1.414-1.414 2.828 0s0 2.828 0 2.828l-1.414 1.414zm-21 21s-1.414 1.414-2.828 0s0-2.828 0-2.828l1.414-1.414s1.414-1.414 2.828 0s0 2.828 0 2.828l-1.414 1.414zM16 32s0-2 2-2s2 2 2 2v2s0 2-2 2s-2-2-2-2v-2z"/><circle fill="#FFD983" cx="18" cy="18" r="10"/><rect x="0" y="0" width="36" height="36" fill="rgba(0, 0, 0, 0)" /></svg>
+                </button>
+            </div>
+            </div>
+    </div>
+</nav>
+        <main>
+            
+<div class="container">
+    <article>
+        <header class="article-header">
+            <div class="thumb">
+                <div>
+                    <h1>DIY: Formatting strings without extra allocations</h1>
+                    <div class="post-meta">
+                        <div>
+                            
+                            
+                              
+                            
+                            By  | <time>January 19, 2022</time>
+                            | 7 minutes
+                        </div>
+                        <div class="tags">
+                            
+                            <a href="/tags/c&#43;&#43;/">C&#43;&#43;</a>
+                            
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </header>
+    </article>
+
+    <div class="article-post">
+    <h2 id="whats-the-goal">
+    <a href="#whats-the-goal" class="anchor">
+        <svg class="icon" aria-hidden="true" focusable="false" height="16" version="1.1" viewBox="0 0 16 16" width="16">
+            <path fill-rule="evenodd"
+                d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z">
+            </path>
+        </svg>
+    </a>
+    What&#39;s the goal?
+</h2>
+<p>Basically, to be able to write</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-c++" data-lang="c++">    <span style="color:#66d9ef">auto</span> s <span style="color:#f92672">=</span> format(<span style="color:#e6db74">&#34;%0 %1&#34;</span>, <span style="color:#e6db74">&#34;Hello&#34;</span>, <span style="color:#e6db74">&#34;World&#34;</span>);
+</code></pre></div><p>and get <code>Hello World</code> as a result.</p>
+<p>And only allocate memory once, enough to fit the final result.,</p>
+<h2 id="whats-the-point">
+    <a href="#whats-the-point" class="anchor">
+        <svg class="icon" aria-hidden="true" focusable="false" height="16" version="1.1" viewBox="0 0 16 16" width="16">
+            <path fill-rule="evenodd"
+                d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z">
+            </path>
+        </svg>
+    </a>
+    What&#39;s the point?
+</h2>
+<p>&ldquo;Why not to use …</p>
+<ul>
+<li>
+<p>…<code>printf</code>?&rdquo; - it sucks, really. Non-type safe, without validation (unless your compiler built special support for it… strangely, all of them did… <em>huh</em>), needs to extract C-style string from C++ <code>string</code>s and <code>string_view</code>s etc.</p>
+</li>
+<li>
+<p>…<code>&lt;iostream&gt;</code>?&quot; - iostreams are slow. Sure, they support lots of stuff, including locales and what not, but they are <em>slow</em>. And allocate a lot of memory here and there. And it&rsquo;s not friendly to localization - you need an ability to reorder arguments in that case.</p>
+</li>
+<li>
+<p>…something like <code>QString::arg</code>?&quot; - actually this article is inspired by Qt&rsquo;s formatting - or rather by its imitation in our codebase. This being said, it&rsquo;s also inefficient (which is what brought me to this post - the formatting stood up high in the CPU profile);</p>
+</li>
+<li>
+<p>…<code>{fmt}</code>? it&rsquo;s going to be a part of standard soon?&quot; Well yes, you caught me. <code>{fmt}</code> is great. Use it if you can. At my job we use UTF-16 built-in-house strings<sup id="fnref:1"><a href="#fn:1" class="footnote-ref" role="doc-noteref">1</a></sup>, and <code>{fmt}</code> can&rsquo;t handle those (AFAIK). But yes, one day…</p>
+</li>
+</ul>
+<p>Anyway there wouldn&rsquo;t be a post if there was no problem to solve, right?</p>
+<h2 id="off-we-go">
+    <a href="#off-we-go" class="anchor">
+        <svg class="icon" aria-hidden="true" focusable="false" height="16" version="1.1" viewBox="0 0 16 16" width="16">
+            <path fill-rule="evenodd"
+                d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z">
+            </path>
+        </svg>
+    </a>
+    Off we go!
+</h2>
+<p>So, the function signature would look like something like this in pseudocode:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-c++" data-lang="c++">    str <span style="color:#a6e22e">format</span>(str fmt, ...);
+</code></pre></div><p>which in C++ would look like<sup id="fnref:2"><a href="#fn:2" class="footnote-ref" role="doc-noteref">2</a></sup>:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-c++" data-lang="c++">    <span style="color:#66d9ef">template</span><span style="color:#f92672">&lt;</span><span style="color:#66d9ef">typename</span>... ArgsT<span style="color:#f92672">&gt;</span>
+    std<span style="color:#f92672">::</span>string format(<span style="color:#66d9ef">const</span> std<span style="color:#f92672">::</span>string_view<span style="color:#f92672">&amp;</span> fmt, ArgsT<span style="color:#f92672">&amp;&amp;</span>... args);
+</code></pre></div><p>The implementation will look like this (in pseudocode)</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-c++" data-lang="c++">    <span style="color:#66d9ef">template</span><span style="color:#f92672">&lt;</span><span style="color:#66d9ef">typename</span>... ArgsT<span style="color:#f92672">&gt;</span>
+    std<span style="color:#f92672">::</span>string format(<span style="color:#66d9ef">const</span> std<span style="color:#f92672">::</span>string_view<span style="color:#f92672">&amp;</span> fmt, ArgsT<span style="color:#f92672">&amp;&amp;</span>... args)
+    {
+        <span style="color:#75715e">// compute length of all the strings, including substitutions.
+</span><span style="color:#75715e"></span>        size_t total_length <span style="color:#f92672">=</span> <span style="color:#ae81ff">0</span>;
+        
+        <span style="color:#66d9ef">for</span> (<span style="color:#66d9ef">auto</span> marker: markers(fmt))
+        {
+            total_length <span style="color:#f92672">=</span> marker.string_before().size();
+            <span style="color:#66d9ef">if</span> (marker.is_ok())
+            {
+                total_length <span style="color:#f92672">+=</span> args[marker.arg_id].size();
+            }
+        }
+
+        std<span style="color:#f92672">::</span>string result;
+        result.reserve(total_length); <span style="color:#75715e">// the only place we&#39;re going to allocate!
+</span><span style="color:#75715e"></span>
+        <span style="color:#75715e">// concatenate the elements
+</span><span style="color:#75715e"></span>        <span style="color:#66d9ef">for</span> (<span style="color:#66d9ef">auto</span> marker: markers(fmt))
+        {
+            result <span style="color:#f92672">+=</span> marker.string_before();
+            <span style="color:#66d9ef">if</span> (marker.is_ok())
+            {
+                result <span style="color:#f92672">+=</span> args[marker.arg_id];
+            }
+        }
+
+        <span style="color:#66d9ef">return</span> result;
+    }
+</code></pre></div><p>The downside here is that we traverse the <code>fmt</code> twice. But otherwise seems to be efficient, no?</p>
+<p>There&rsquo;re gotchas though:</p>
+<ul>
+<li>
+<p>we need to be able to find the markers efficiently (and allow to still use <code>%%</code> as an escaped <code>%</code>);</p>
+</li>
+<li>
+<p>to my knowledge, there&rsquo;s no standard facility to access a value in a parameter pack by index (unless it&rsquo;s known in compile time);</p>
+</li>
+<li>
+<p>very likely, <code>ArgsT...</code> will contain a mix-n-match of string literals, C-strings, std::strings, std::string_views etc. We need to handle them uniformly. Ideally, we also need to handle them efficiently - e.g. string literals don&rsquo;t need their length to be computed at run-time, since it&rsquo;s known at compile-time.</p>
+</li>
+</ul>
+<h2 id="-marks-the-spot">
+    <a href="#-marks-the-spot" class="anchor">
+        <svg class="icon" aria-hidden="true" focusable="false" height="16" version="1.1" viewBox="0 0 16 16" width="16">
+            <path fill-rule="evenodd"
+                d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z">
+            </path>
+        </svg>
+    </a>
+    % marks the spot
+</h2>
+<p>Let&rsquo;s start with iteration over the markers. I&rsquo;m too lazy to implement proper STL-style iterators to be used with <code>for</code> loop, so let&rsquo;s do an approach with callbacks:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-c++" data-lang="c++">
+    <span style="color:#66d9ef">struct</span> <span style="color:#a6e22e">marker_info</span> {
+        std<span style="color:#f92672">::</span>string_view literal;
+        <span style="color:#66d9ef">int</span> arg_number;
+        std<span style="color:#f92672">::</span>string_view rest;
+    };
+
+    <span style="color:#66d9ef">template</span><span style="color:#f92672">&lt;</span><span style="color:#66d9ef">typename</span> Func<span style="color:#f92672">&gt;</span>
+    <span style="color:#66d9ef">constexpr</span> <span style="color:#66d9ef">void</span> foreach_marker(std<span style="color:#f92672">::</span>string_view fmt, Func func)
+    {
+        <span style="color:#66d9ef">while</span>(<span style="color:#f92672">!</span>fmt.empty())
+        {
+            <span style="color:#66d9ef">auto</span> [ literal, arg_number, rest ] <span style="color:#f92672">=</span> find_marker(fmt);
+            func(literal, arg_number);
+            fmt <span style="color:#f92672">=</span> rest;
+        }
+    }
+</code></pre></div><p>Finding markers is a bit trickier but still pretty clean:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-c++" data-lang="c++">    <span style="color:#66d9ef">constexpr</span> marker_info <span style="color:#a6e22e">find_marker</span>(<span style="color:#66d9ef">const</span> std<span style="color:#f92672">::</span>string_view<span style="color:#f92672">&amp;</span> format)
+    {
+        <span style="color:#66d9ef">for</span> (<span style="color:#66d9ef">auto</span> i <span style="color:#f92672">=</span> <span style="color:#ae81ff">0</span>; i <span style="color:#f92672">&lt;</span> format.size(); <span style="color:#f92672">++</span>i)
+        {
+            <span style="color:#66d9ef">if</span> (format[i] <span style="color:#f92672">==</span> <span style="color:#e6db74">&#39;%&#39;</span>)
+            {
+                <span style="color:#66d9ef">auto</span> literal_end <span style="color:#f92672">=</span> i<span style="color:#f92672">++</span>; <span style="color:#75715e">// `literal_end` points at &#39;%&#39;, `i` at next char.
+</span><span style="color:#75715e"></span>                <span style="color:#66d9ef">auto</span> c <span style="color:#f92672">=</span> format[i<span style="color:#f92672">++</span>];   <span style="color:#75715e">// `c` is character after &#39;%&#39;, `i` is immediiately after the marker
+</span><span style="color:#75715e"></span>                <span style="color:#66d9ef">if</span> (c <span style="color:#f92672">==</span> <span style="color:#e6db74">&#39;%&#39;</span>)   <span style="color:#75715e">// escaped &#39;%&#39;
+</span><span style="color:#75715e"></span>                {
+                    <span style="color:#66d9ef">return</span> {
+                            format.substr(<span style="color:#ae81ff">0</span>, literal_end <span style="color:#f92672">+</span> <span style="color:#ae81ff">1</span>), <span style="color:#75715e">// literal including first &#39;%&#39; 
+</span><span style="color:#75715e"></span>                            <span style="color:#f92672">-</span><span style="color:#ae81ff">1</span>, <span style="color:#75715e">// invalid argument id - nothing to substitute
+</span><span style="color:#75715e"></span>                            format.substr(i) <span style="color:#75715e">// everything after the marker
+</span><span style="color:#75715e"></span>                        };
+                }
+                <span style="color:#66d9ef">else</span> <span style="color:#66d9ef">if</span> (<span style="color:#e6db74">&#39;0&#39;</span> <span style="color:#f92672">&lt;=</span> c <span style="color:#f92672">&amp;&amp;</span> c <span style="color:#f92672">&lt;=</span> <span style="color:#e6db74">&#39;9&#39;</span>)
+                {
+                    <span style="color:#66d9ef">return</span> {
+                            format.substr(<span style="color:#ae81ff">0</span>, literal_end), <span style="color:#75715e">// text before marker
+</span><span style="color:#75715e"></span>                            c <span style="color:#f92672">-</span> <span style="color:#e6db74">&#39;0&#39;</span>, <span style="color:#75715e">// index of an element in the parameter pack
+</span><span style="color:#75715e"></span>                            format.substr(i)    <span style="color:#75715e">// everything after the marker
+</span><span style="color:#75715e"></span>                        };
+                }
+            }
+        }
+        <span style="color:#75715e">// no marker is found, return the whole `format`, invalid arg.id and empty `rest`.
+</span><span style="color:#75715e"></span>        <span style="color:#66d9ef">return</span> { format, <span style="color:#f92672">-</span><span style="color:#ae81ff">1</span>, format.substr(<span style="color:#ae81ff">0</span>,<span style="color:#ae81ff">0</span>) };
+    }
+</code></pre></div><p>Here we cut some corners:</p>
+<ul>
+<li>
+<p>we&rsquo;re lucky to have <code>'%'</code> as both escaped character <em>and</em> escaping character. Otherwise the code would be a bit more complex;</p>
+</li>
+<li>
+<p>we only allow indices in 0..9, i.e. no more than 10 arguments. It&rsquo;s trivial to extend it (just check if more characters ahead are digits), but I omitted that for simplicity sake.</p>
+</li>
+</ul>
+<h2 id="parameter-pack-as-array-really">
+    <a href="#parameter-pack-as-array-really" class="anchor">
+        <svg class="icon" aria-hidden="true" focusable="false" height="16" version="1.1" viewBox="0 0 16 16" width="16">
+            <path fill-rule="evenodd"
+                d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z">
+            </path>
+        </svg>
+    </a>
+    Parameter pack as array? Really?
+</h2>
+<p>OK, now we need to access argument in the parameter pack by its index (in 0..9 range). How to do that?</p>
+<p>If we knew the index at compile-time, we could use something like <code>get&lt;I&gt;(make_tuple(args...))</code>. But we need to use indices at run-time.</p>
+<p>I&rsquo;m still new to the C++ template magic, so I did it in a pretty straightforward and stupid way - finding <code>n</code>-th element by skipping <code>n-1</code> elements (good thing, compilers these days are fast):</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-c++" data-lang="c++">
+    <span style="color:#66d9ef">template</span><span style="color:#f92672">&lt;</span><span style="color:#66d9ef">int</span> N<span style="color:#f92672">&gt;</span>
+    std<span style="color:#f92672">::</span>string_view nth(<span style="color:#66d9ef">int</span>) {
+        <span style="color:#66d9ef">return</span> <span style="color:#e6db74">&#34;&#34;</span>;
+    }    
+
+    <span style="color:#66d9ef">template</span><span style="color:#f92672">&lt;</span><span style="color:#66d9ef">int</span> N <span style="color:#f92672">=</span> <span style="color:#ae81ff">0</span>, <span style="color:#66d9ef">typename</span> ArgT, <span style="color:#66d9ef">typename</span>... ArgsT<span style="color:#f92672">&gt;</span>
+    std<span style="color:#f92672">::</span>string_view nth(<span style="color:#66d9ef">int</span> i, ArgT<span style="color:#f92672">&amp;&amp;</span> arg, ArgsT<span style="color:#f92672">&amp;&amp;</span>... args)
+    {
+        <span style="color:#66d9ef">if</span> (i <span style="color:#f92672">==</span> N)
+        {
+            <span style="color:#66d9ef">return</span> <span style="color:#a6e22e">to_string_view</span>(std<span style="color:#f92672">::</span>forward<span style="color:#f92672">&lt;</span>ArgT<span style="color:#f92672">&gt;</span>(arg));
+        }
+        <span style="color:#66d9ef">return</span> nth<span style="color:#f92672">&lt;</span>N<span style="color:#f92672">+</span><span style="color:#ae81ff">1</span>, ArgsT...<span style="color:#f92672">&gt;</span>(i, std<span style="color:#f92672">::</span>forward<span style="color:#f92672">&lt;</span>ArgsT<span style="color:#f92672">&gt;</span>(args)...);
+    }
+</code></pre></div><p>and <code>to_string_view</code> will be overloaded basing on the argument:</p>
+<p>For string literal, compiler knows size already, so we can use it immediately</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-c++" data-lang="c++">    <span style="color:#66d9ef">template</span><span style="color:#f92672">&lt;</span>size_t N<span style="color:#f92672">&gt;</span>
+    std<span style="color:#f92672">::</span>string_view to_string_view(<span style="color:#66d9ef">const</span> <span style="color:#66d9ef">char</span> (<span style="color:#f92672">&amp;</span>s)[N])
+    {
+        <span style="color:#75715e">// C-style arrays have terminating &#39;\0&#39; that we don&#39;t need.
+</span><span style="color:#75715e"></span>        <span style="color:#66d9ef">return</span> {s, N<span style="color:#f92672">-</span><span style="color:#ae81ff">1</span>};
+    }
+</code></pre></div><p>but then we need to distinguish it somehow from <code>char *</code>. The best way to force compiler into it is to make a template specification that is more complex than the one for literal (above). I stole this one from <a href="https://android.googlesource.com/platform/external/qemu/+/emu-master-dev/android/android-emu-base/android/base/StringView.h#106">a string view implementation in the Android codebase</a>:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-c++" data-lang="c++">    <span style="color:#66d9ef">template</span><span style="color:#f92672">&lt;</span><span style="color:#66d9ef">typename</span> CharT, <span style="color:#66d9ef">typename</span> <span style="color:#f92672">=</span> std<span style="color:#f92672">::</span>enable_if_t<span style="color:#f92672">&lt;</span>std<span style="color:#f92672">::</span>is_same_v<span style="color:#f92672">&lt;</span>CharT, <span style="color:#66d9ef">char</span><span style="color:#f92672">&gt;&gt;&gt;</span>
+    std<span style="color:#f92672">::</span>string_view to_string_view(<span style="color:#66d9ef">const</span> CharT<span style="color:#f92672">*</span> <span style="color:#66d9ef">const</span> <span style="color:#f92672">&amp;</span>s)
+    {
+        <span style="color:#66d9ef">return</span> s;
+    }
+</code></pre></div><p>Yuck!…</p>
+<p>FInally, we need ones for <code>std::string</code> and <code>std::string_view</code>. They need to be templates too, otherwise the implementations above will be ignored. The implementations are trivial though:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-c++" data-lang="c++">    <span style="color:#66d9ef">template</span><span style="color:#f92672">&lt;</span><span style="color:#66d9ef">typename</span> <span style="color:#f92672">=</span> <span style="color:#66d9ef">char</span><span style="color:#f92672">&gt;</span>
+    std<span style="color:#f92672">::</span>string_view to_string_view(<span style="color:#66d9ef">const</span> std<span style="color:#f92672">::</span>string<span style="color:#f92672">&amp;</span> s){
+        <span style="color:#66d9ef">return</span> s;
+    }
+
+    <span style="color:#66d9ef">template</span><span style="color:#f92672">&lt;</span><span style="color:#66d9ef">typename</span> <span style="color:#f92672">=</span> <span style="color:#66d9ef">char</span><span style="color:#f92672">&gt;</span>
+    std<span style="color:#f92672">::</span>string_view to_string_view(<span style="color:#66d9ef">const</span> std<span style="color:#f92672">::</span>string_view<span style="color:#f92672">&amp;</span> s){
+        <span style="color:#66d9ef">return</span> s;
+    }
+</code></pre></div><p>Note: we don&rsquo;t really need the <code>to_string_view</code> functions above: we could easily implement <code>nth</code> as</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-c++" data-lang="c++">    <span style="color:#66d9ef">template</span><span style="color:#f92672">&lt;</span><span style="color:#66d9ef">int</span> N <span style="color:#f92672">=</span> <span style="color:#ae81ff">0</span>, <span style="color:#66d9ef">typename</span> ArgT, <span style="color:#66d9ef">typename</span>... ArgsT<span style="color:#f92672">&gt;</span>
+    std<span style="color:#f92672">::</span>string_view nth(<span style="color:#66d9ef">int</span> i, ArgT<span style="color:#f92672">&amp;&amp;</span> arg, ArgsT<span style="color:#f92672">&amp;&amp;</span>... args)
+    {
+        <span style="color:#66d9ef">if</span> (i <span style="color:#f92672">==</span> N)
+        {
+            <span style="color:#66d9ef">return</span> arg;
+        }
+        <span style="color:#66d9ef">return</span> nth<span style="color:#f92672">&lt;</span>N<span style="color:#f92672">+</span><span style="color:#ae81ff">1</span>, ArgsT...<span style="color:#f92672">&gt;</span>(i, std<span style="color:#f92672">::</span>forward<span style="color:#f92672">&lt;</span>ArgsT<span style="color:#f92672">&gt;</span>(args)...);
+    }
+</code></pre></div><p>The downside here would be that for string literals length would be computed at runtime via <code>strlen</code> or equivalent. Which may be OK in many cases. But</p>
+<h2 id="final-assembly">
+    <a href="#final-assembly" class="anchor">
+        <svg class="icon" aria-hidden="true" focusable="false" height="16" version="1.1" viewBox="0 0 16 16" width="16">
+            <path fill-rule="evenodd"
+                d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z">
+            </path>
+        </svg>
+    </a>
+    Final assembly
+</h2>
+<p>Having all the pieces in place, we can write final version of <code>format</code>:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-c++" data-lang="c++"><span style="color:#66d9ef">template</span><span style="color:#f92672">&lt;</span><span style="color:#66d9ef">typename</span>... ArgsT<span style="color:#f92672">&gt;</span>
+std<span style="color:#f92672">::</span>string format(<span style="color:#66d9ef">const</span> std<span style="color:#f92672">::</span>string_view<span style="color:#f92672">&amp;</span> fmt, ArgsT<span style="color:#f92672">&amp;&amp;</span>... args)
+{
+    <span style="color:#66d9ef">using</span> <span style="color:#66d9ef">namespace</span> details;
+    <span style="color:#75715e">// compute length of all the strings, including substitutions.
+</span><span style="color:#75715e"></span>    size_t total_length <span style="color:#f92672">=</span> <span style="color:#ae81ff">0</span>;
+    foreach_marker(fmt, [<span style="color:#f92672">&amp;</span>total_length, <span style="color:#f92672">&amp;</span>args...](<span style="color:#66d9ef">auto</span><span style="color:#f92672">&amp;&amp;</span> s, <span style="color:#66d9ef">int</span> arg_id) {
+        total_length <span style="color:#f92672">+=</span> s.size();
+        <span style="color:#66d9ef">if</span> (arg_id <span style="color:#f92672">&gt;=</span> <span style="color:#ae81ff">0</span>)
+        {
+            total_length <span style="color:#f92672">+=</span> nth(arg_id, std<span style="color:#f92672">::</span>forward<span style="color:#f92672">&lt;</span>ArgsT<span style="color:#f92672">&gt;</span>(args)...).size();
+        }
+    });
+
+    std<span style="color:#f92672">::</span>string result;
+    result.reserve(total_length);
+
+    <span style="color:#75715e">// concatenate the elements
+</span><span style="color:#75715e"></span>    foreach_marker(fmt, [<span style="color:#f92672">&amp;</span>result, <span style="color:#f92672">&amp;</span>args...](<span style="color:#66d9ef">auto</span><span style="color:#f92672">&amp;&amp;</span> s, <span style="color:#66d9ef">int</span> arg_id) {
+        result.append(s);
+        <span style="color:#66d9ef">if</span> (arg_id <span style="color:#f92672">&gt;=</span> <span style="color:#ae81ff">0</span>)
+        {
+            result.append(nth(arg_id, std<span style="color:#f92672">::</span>forward<span style="color:#f92672">&lt;</span>ArgsT<span style="color:#f92672">&gt;</span>(args)...));
+        }
+    });
+
+    <span style="color:#66d9ef">return</span> result;
+}
+</code></pre></div><p>We can verify that the memory is allocated at most once by overriding <code>new</code> and <code>delete</code> operators (which I did: see <a href="https://github.com/elder-george/code-snippets/blob/main/cpp/format_to_string.cpp#L176">the full code</a>).</p>
+<h2 id="homework">
+    <a href="#homework" class="anchor">
+        <svg class="icon" aria-hidden="true" focusable="false" height="16" version="1.1" viewBox="0 0 16 16" width="16">
+            <path fill-rule="evenodd"
+                d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z">
+            </path>
+        </svg>
+    </a>
+    Homework
+</h2>
+<p>What a possible areas of improvement here? We could:</p>
+<ul>
+<li>
+<p>allowing more than 10 arguments (see above);</p>
+</li>
+<li>
+<p>add validation - at the very least enforce that the maximum argument id in the markers is not greater than number of elements in the parameter pack;</p>
+</li>
+<li>
+<p>making code work with <code>char16_t</code> and <code>char32_t</code> (nothing hard, again);</p>
+</li>
+<li>
+<p>allow formatting custom types (would be similar to <code>to_string_view</code> overloads, although it&rsquo;ll probably need to actually be <code>to_string</code>)</p>
+</li>
+<li>
+<p>allow markers to have format specifiers (similar to how <code>{fmt}</code> does that).</p>
+</li>
+</ul>
+<p>But again, maybe you should use production-quality libraries instead 😉.</p>
+<section class="footnotes" role="doc-endnotes">
+<hr>
+<ol>
+<li id="fn:1" role="doc-endnote">
+<p>implementation below will use ASCII/UTF-8 strings too, but it&rsquo;s trivial to upgrade it to other encodings.&#160;<a href="#fnref:1" class="footnote-backref" role="doc-backlink">&#x21a9;&#xfe0e;</a></p>
+</li>
+<li id="fn:2" role="doc-endnote">
+<p>many people prefer to pass <code>string_view</code>s by value. Unfortunately, Windows ABI doesn&rsquo;t support passing a parameter via multiple registers, so I keep passing them by const reference, sorry.&#160;<a href="#fnref:2" class="footnote-backref" role="doc-backlink">&#x21a9;&#xfe0e;</a></p>
+</li>
+</ol>
+</section>
+
+    </div>
+</div>
+
+<div class="container">
+    
+    <nav class="flex container suggested">
+        
+        <a rel="prev" href="/post/safe-buffers/" title="Previous post (older)">
+            <span>Previous</span>
+            Safe Buffers
+            </a>
+        
+        
+        
+    </nav>
+    
+</div>
+ 
+<div class="container">
+    
+    <script src="https://giscus.app/client.js" 
+        data-repo="elder-george/elder-george.github.io"
+        data-repo-id="R_kgDOGRFegA="
+        
+        data-category="Announcements"
+        data-category-id="DIC_kwDOGRFegM4B_lRW"
+        
+        data-mapping="pathname"
+        data-reactions-enabled="1"
+        data-emit-metadata="0"
+        data-theme="light"
+        crossorigin="anonymous"
+        async
+        >
+</script>
+
+<script>
+    function setGiscusTeheme(theme) {
+        let giscus = document.querySelector('.giscus iframe');
+        if (giscus) {
+            giscus.contentWindow.postMessage(
+                {
+                    giscus: {
+                        setConfig: {
+                            theme: theme
+                        }
+                    }
+                },
+                'https://giscus.app'
+            )
+        }
+    }
+
+    addEventListener('message', event => {
+        if (event.origin !== 'https://giscus.app') return;
+        setGiscusTeheme(document.documentElement.dataset.userColorScheme)
+    });
+
+    window.addEventListener('onColorSchemeChange', (e) => {
+        setGiscusTeheme(e.detail)
+    })
+</script>
+
+</div>
+
+</main>
+
+
+        </main>
+        <footer class="footer flex">
+    <section class="container">
+        <nav class="footer-links">
+            
+        </nav>
+
+        
+    </section>
+    <script defer src="/ts/features.c81551cd4dbef120af278f16966a41142c02be9ff5d6a669be09820fbf047456.js" 
+    data-enable-footnotes="true"
+    ></script>
+</footer>
+
+    </body>
+</html>
