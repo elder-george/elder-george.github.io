@@ -6,7 +6,16 @@
     <description>Recent content in Posts on /dev/null</description>
     <generator>Hugo -- gohugo.io</generator>
     <language>en-us</language>
-    <lastBuildDate>Wed, 19 Jan 2022 19:00:16 -0800</lastBuildDate><atom:link href="http://elder-george.github.io/post/index.xml" rel="self" type="application/rss+xml" />
+    <lastBuildDate>Thu, 17 Nov 2022 21:13:17 -0800</lastBuildDate><atom:link href="http://elder-george.github.io/post/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>Fix Publishing</title>
+      <link>http://elder-george.github.io/post/fix-publishing/</link>
+      <pubDate>Thu, 17 Nov 2022 21:13:17 -0800</pubDate>
+      
+      <guid>http://elder-george.github.io/post/fix-publishing/</guid>
+      <description>Publishing didn&amp;rsquo;t work lately. Will it now?</description>
+    </item>
+    
     <item>
       <title>DIY: Formatting strings without extra allocations</title>
       <link>http://elder-george.github.io/post/format-string/</link>

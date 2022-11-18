@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>github on /dev/null</title>
+    <link>http://elder-george.github.io/tags/github/</link>
+    <description>Recent content in github on /dev/null</description>
+    <generator>Hugo -- gohugo.io</generator>
+    <language>en-us</language>
+    <lastBuildDate>Thu, 17 Nov 2022 21:13:17 -0800</lastBuildDate><atom:link href="http://elder-george.github.io/tags/github/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>Fix Publishing</title>
+      <link>http://elder-george.github.io/post/fix-publishing/</link>
+      <pubDate>Thu, 17 Nov 2022 21:13:17 -0800</pubDate>
+      
+      <guid>http://elder-george.github.io/post/fix-publishing/</guid>
+      <description>Publishing didn&amp;rsquo;t work lately. Will it now?</description>
+    </item>
+    
+  </channel>
+</rss>
