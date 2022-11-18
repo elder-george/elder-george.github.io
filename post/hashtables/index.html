@@ -153,46 +153,46 @@
 <p>The benchmarked it and found, among other things, that <strong>the C++ version was the slowest of them all</strong>.</p>
 <p>This intrigued me. True, C++ standard defines  <code>std::unordered_map</code> in a way that it can only use chaining, and that&rsquo;s usually is inferior performance-wise to open-addressing hashtables, but there was no way it could be <strong>that</strong> bad. And definitely <code>std::string</code> should <em>improve</em> performance, not make it worse, compared to C-strings because of short string optimization (SSO) etc.</p>
 <p>So, I decided to look into it. Here&rsquo;s the core parts of the original version of the OP&rsquo;s <code>add</code> function:</p>
-<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-c++" data-lang="c++">    <span style="color:#75715e">// wrapper structure to ensure common interface in all the implementations
-</span><span style="color:#75715e"></span>    <span style="color:#66d9ef">struct</span> <span style="color:#a6e22e">Intern_pool</span> {
-        std<span style="color:#f92672">::</span>unordered_map<span style="color:#f92672">&lt;</span>std<span style="color:#f92672">::</span>string, uint<span style="color:#f92672">&gt;</span> map;
-        uint next;
-    };
-    ...
-    uint add(Intern_pool<span style="color:#f92672">*</span> pool, std<span style="color:#f92672">::</span>string s)
-    {
-        <span style="color:#66d9ef">auto</span><span style="color:#f92672">&amp;</span> map <span style="color:#f92672">=</span> pool<span style="color:#f92672">-&gt;</span>map;
-        <span style="color:#66d9ef">if</span> (map.find(s) <span style="color:#f92672">!=</span> std<span style="color:#f92672">::</span>end(map))
-            <span style="color:#66d9ef">return</span> map.at(s);
-        map.insert(std<span style="color:#f92672">::</span>make_pair(s, <span style="color:#f92672">++</span>pool<span style="color:#f92672">-&gt;</span>next));
-        <span style="color:#66d9ef">return</span> pool<span style="color:#f92672">-&gt;</span>next; 
-    }
-    ...
-    <span style="color:#66d9ef">int</span> main(<span style="color:#66d9ef">int</span> argc, <span style="color:#66d9ef">char</span> <span style="color:#f92672">**</span>argv)
-    {
-        <span style="color:#66d9ef">char</span> buffer[<span style="color:#ae81ff">256</span>];
-        <span style="color:#66d9ef">while</span> (fgets(buffer, <span style="color:#ae81ff">256</span>, file))
-        {
-            buffer[strlen(buffer)<span style="color:#f92672">-</span><span style="color:#ae81ff">1</span>] <span style="color:#f92672">=</span> <span style="color:#e6db74">&#39;\0&#39;</span>; <span style="color:#75715e">// removes the `\n` from fgets()
-</span><span style="color:#75715e"></span>            add(<span style="color:#f92672">&amp;</span>intern_pool, buffer);
-        }        
-    }
-</code></pre></div><p>Since the author mentioned that he suspects C++ strings to be a source of slowdown, that was the first thing that caught my eye:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-c++" data-lang="c++"><span style="display:flex;"><span>    <span style="color:#75715e">// wrapper structure to ensure common interface in all the implementations
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>    <span style="color:#66d9ef">struct</span> <span style="color:#a6e22e">Intern_pool</span> {
+</span></span><span style="display:flex;"><span>        std<span style="color:#f92672">::</span>unordered_map<span style="color:#f92672">&lt;</span>std<span style="color:#f92672">::</span>string, uint<span style="color:#f92672">&gt;</span> map;
+</span></span><span style="display:flex;"><span>        uint next;
+</span></span><span style="display:flex;"><span>    };
+</span></span><span style="display:flex;"><span>    ...
+</span></span><span style="display:flex;"><span>    uint add(Intern_pool<span style="color:#f92672">*</span> pool, std<span style="color:#f92672">::</span>string s)
+</span></span><span style="display:flex;"><span>    {
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">auto</span><span style="color:#f92672">&amp;</span> map <span style="color:#f92672">=</span> pool<span style="color:#f92672">-&gt;</span>map;
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">if</span> (map.find(s) <span style="color:#f92672">!=</span> std<span style="color:#f92672">::</span>end(map))
+</span></span><span style="display:flex;"><span>            <span style="color:#66d9ef">return</span> map.at(s);
+</span></span><span style="display:flex;"><span>        map.insert(std<span style="color:#f92672">::</span>make_pair(s, <span style="color:#f92672">++</span>pool<span style="color:#f92672">-&gt;</span>next));
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">return</span> pool<span style="color:#f92672">-&gt;</span>next; 
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>    ...
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">int</span> main(<span style="color:#66d9ef">int</span> argc, <span style="color:#66d9ef">char</span> <span style="color:#f92672">**</span>argv)
+</span></span><span style="display:flex;"><span>    {
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">char</span> buffer[<span style="color:#ae81ff">256</span>];
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">while</span> (fgets(buffer, <span style="color:#ae81ff">256</span>, file))
+</span></span><span style="display:flex;"><span>        {
+</span></span><span style="display:flex;"><span>            buffer[strlen(buffer)<span style="color:#f92672">-</span><span style="color:#ae81ff">1</span>] <span style="color:#f92672">=</span> <span style="color:#e6db74">&#39;\0&#39;</span>; <span style="color:#75715e">// removes the `\n` from fgets()
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>            add(<span style="color:#f92672">&amp;</span>intern_pool, buffer);
+</span></span><span style="display:flex;"><span>        }        
+</span></span><span style="display:flex;"><span>    }
+</span></span></code></pre></div><p>Since the author mentioned that he suspects C++ strings to be a source of slowdown, that was the first thing that caught my eye:</p>
 <ul>
 <li><code>s</code> was passed to <code>add</code> by value (so the data from <code>buffer</code> was copied into it) - that&rsquo;d require allocation if the data in `buffer was long enough to prevent SSO.</li>
 <li>then it was wrapped into a <code>std::pair</code> which would make a copy of it - again, if it is short enough, that&rsquo;s just <code>memcpy</code>, but for a long one that&rsquo;ll be one more allocation</li>
 <li>on older compilers, <code>map.insert</code> would create yet another copy. Thankfully, since C++ <code>insert</code> must support move semantics, so that&rsquo;s not a reason to worry anymore.</li>
 </ul>
 <p>Still, extra copies are bad. Let&rsquo;s eliminate at least one of them:</p>
-<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-c++" data-lang="c++">    uint <span style="color:#a6e22e">add</span>(Intern_pool<span style="color:#f92672">*</span> pool, std<span style="color:#f92672">::</span>string s)
-    {
-        <span style="color:#66d9ef">auto</span><span style="color:#f92672">&amp;</span> map <span style="color:#f92672">=</span> pool<span style="color:#f92672">-&gt;</span>map; 
-        <span style="color:#66d9ef">if</span> (map.find(s) <span style="color:#f92672">!=</span> std<span style="color:#f92672">::</span>end(map)) 
-            <span style="color:#66d9ef">return</span> map.at(s);
-        map.emplace(std<span style="color:#f92672">::</span>move(s), <span style="color:#f92672">++</span>pool<span style="color:#f92672">-&gt;</span>next));
-        <span style="color:#66d9ef">return</span> pool<span style="color:#f92672">-&gt;</span>next;
-    }
-</code></pre></div><p>Here we have moved <code>s</code> into the map and used <code>emplace</code> in addition, so no need to create tuple as well.</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-c++" data-lang="c++"><span style="display:flex;"><span>    uint <span style="color:#a6e22e">add</span>(Intern_pool<span style="color:#f92672">*</span> pool, std<span style="color:#f92672">::</span>string s)
+</span></span><span style="display:flex;"><span>    {
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">auto</span><span style="color:#f92672">&amp;</span> map <span style="color:#f92672">=</span> pool<span style="color:#f92672">-&gt;</span>map; 
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">if</span> (map.find(s) <span style="color:#f92672">!=</span> std<span style="color:#f92672">::</span>end(map)) 
+</span></span><span style="display:flex;"><span>            <span style="color:#66d9ef">return</span> map.at(s);
+</span></span><span style="display:flex;"><span>        map.emplace(std<span style="color:#f92672">::</span>move(s), <span style="color:#f92672">++</span>pool<span style="color:#f92672">-&gt;</span>next));
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">return</span> pool<span style="color:#f92672">-&gt;</span>next;
+</span></span><span style="display:flex;"><span>    }
+</span></span></code></pre></div><p>Here we have moved <code>s</code> into the map and used <code>emplace</code> in addition, so no need to create tuple as well.</p>
 <p>But the code is still suboptimal:  Let&rsquo;s see how many lookups in the map you do:</p>
 <ol>
 <li>when doing <code>map.find</code></li>
@@ -201,27 +201,27 @@
 </ol>
 <p>We can do better: the very reason that <code>map.find</code> returns that cumbersome iterator on success is that it allows to extract value from that iterator, avoiding extra lookup.</p>
 <p>So a better code would be</p>
-<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-c++" data-lang="c++">    uint <span style="color:#a6e22e">add</span>(Intern_pool<span style="color:#f92672">*</span> pool, std<span style="color:#f92672">::</span>string s)
-    {
-        <span style="color:#66d9ef">auto</span><span style="color:#f92672">&amp;</span> map <span style="color:#f92672">=</span> pool<span style="color:#f92672">-&gt;</span>map;
-        <span style="color:#66d9ef">auto</span> it <span style="color:#f92672">=</span> map.find(s);
-        <span style="color:#66d9ef">if</span> (it <span style="color:#f92672">!=</span> std<span style="color:#f92672">::</span>end(map))
-            <span style="color:#66d9ef">return</span> it<span style="color:#f92672">-&gt;</span>second;
-        map.emplace(std<span style="color:#f92672">::</span>move(s), <span style="color:#f92672">++</span>pool<span style="color:#f92672">-&gt;</span>next));
-        <span style="color:#66d9ef">return</span> pool<span style="color:#f92672">-&gt;</span>next;
-    }
-</code></pre></div><p>which only leaves one lookup on the &ldquo;happy&rdquo; path, and two on &ldquo;unhappy&rdquo; one. Alternatively, we could use <code>try_emplace</code> (i.e. on conforming to C++17):</p>
-<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-c++" data-lang="c++">    uint <span style="color:#a6e22e">add</span>(Intern_pool<span style="color:#f92672">*</span> pool, std<span style="color:#f92672">::</span>string s)
-    {
-        <span style="color:#66d9ef">auto</span><span style="color:#f92672">&amp;</span> map <span style="color:#f92672">=</span> pool<span style="color:#f92672">-&gt;</span>map;
-        <span style="color:#66d9ef">auto</span> [it, inserted_new] <span style="color:#f92672">=</span> map.try_emplace(std<span style="color:#f92672">::</span>move(s), pool<span style="color:#f92672">-&gt;</span>next <span style="color:#f92672">+</span> <span style="color:#ae81ff">1</span>);
-        <span style="color:#66d9ef">if</span> (inserted_new)
-        {
-            <span style="color:#66d9ef">return</span> <span style="color:#f92672">++</span>pool<span style="color:#f92672">-&gt;</span>next;
-        }
-        <span style="color:#66d9ef">return</span> it<span style="color:#f92672">-&gt;</span>second;
-    }
-</code></pre></div><p>Here&rsquo;s results I got on my laptop (Intel i7-4270HQ, 16GB, Win10, MSVC 19.16.27043, x64 mode):</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-c++" data-lang="c++"><span style="display:flex;"><span>    uint <span style="color:#a6e22e">add</span>(Intern_pool<span style="color:#f92672">*</span> pool, std<span style="color:#f92672">::</span>string s)
+</span></span><span style="display:flex;"><span>    {
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">auto</span><span style="color:#f92672">&amp;</span> map <span style="color:#f92672">=</span> pool<span style="color:#f92672">-&gt;</span>map;
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">auto</span> it <span style="color:#f92672">=</span> map.find(s);
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">if</span> (it <span style="color:#f92672">!=</span> std<span style="color:#f92672">::</span>end(map))
+</span></span><span style="display:flex;"><span>            <span style="color:#66d9ef">return</span> it<span style="color:#f92672">-&gt;</span>second;
+</span></span><span style="display:flex;"><span>        map.emplace(std<span style="color:#f92672">::</span>move(s), <span style="color:#f92672">++</span>pool<span style="color:#f92672">-&gt;</span>next));
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">return</span> pool<span style="color:#f92672">-&gt;</span>next;
+</span></span><span style="display:flex;"><span>    }
+</span></span></code></pre></div><p>which only leaves one lookup on the &ldquo;happy&rdquo; path, and two on &ldquo;unhappy&rdquo; one. Alternatively, we could use <code>try_emplace</code> (i.e. on conforming to C++17):</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-c++" data-lang="c++"><span style="display:flex;"><span>    uint <span style="color:#a6e22e">add</span>(Intern_pool<span style="color:#f92672">*</span> pool, std<span style="color:#f92672">::</span>string s)
+</span></span><span style="display:flex;"><span>    {
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">auto</span><span style="color:#f92672">&amp;</span> map <span style="color:#f92672">=</span> pool<span style="color:#f92672">-&gt;</span>map;
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">auto</span> [it, inserted_new] <span style="color:#f92672">=</span> map.try_emplace(std<span style="color:#f92672">::</span>move(s), pool<span style="color:#f92672">-&gt;</span>next <span style="color:#f92672">+</span> <span style="color:#ae81ff">1</span>);
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">if</span> (inserted_new)
+</span></span><span style="display:flex;"><span>        {
+</span></span><span style="display:flex;"><span>            <span style="color:#66d9ef">return</span> <span style="color:#f92672">++</span>pool<span style="color:#f92672">-&gt;</span>next;
+</span></span><span style="display:flex;"><span>        }
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">return</span> it<span style="color:#f92672">-&gt;</span>second;
+</span></span><span style="display:flex;"><span>    }
+</span></span></code></pre></div><p>Here&rsquo;s results I got on my laptop (Intel i7-4270HQ, 16GB, Win10, MSVC 19.16.27043, x64 mode):</p>
 <p><em>(I didn&rsquo;t understand the way OP built the dataset, so I just ran <code>tar -xOvf java.* | identifiers &gt; words.txt</code>. 
 The <code>identifiers</code> (author&rsquo;s program to extract keywords and literals) crashed on some png file that <code>tar</code> didn&rsquo;t filter out, at which point <code>words.txt</code> was ~592M, which I considered enough for a quick experiment)</em></p>
 <table>
@@ -355,7 +355,7 @@ The <code>identifiers</code> (author&rsquo;s program to extract keywords and lit
 
         
     </section>
-    <script defer src="/ts/features.c81551cd4dbef120af278f16966a41142c02be9ff5d6a669be09820fbf047456.js" 
+    <script defer src="/ts/features.2f98c2f5215583b54b0a8bd7bdb10411467f4fee386a61e03ca3ddf376273fc4.js" 
     data-enable-footnotes="true"
     ></script>
 </footer>

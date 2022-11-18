@@ -155,20 +155,20 @@
 </h1>
 <p>When using libraries with C-style interfaces, we often see functions that accept an array of data, or a buffer as two parameters: pointer to the first element and length.</p>
 <p>Classic example is</p>
-<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-c++" data-lang="c++"><span style="color:#66d9ef">char</span> <span style="color:#f92672">*</span>fgets(<span style="color:#66d9ef">char</span> <span style="color:#f92672">*</span>str, <span style="color:#66d9ef">int</span> n, FILE <span style="color:#f92672">*</span>stream)
-</code></pre></div><p>If we&rsquo;re going to call it, we&rsquo;ll have something like</p>
-<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-c++" data-lang="c++">    <span style="color:#66d9ef">char</span> buffer[BUF_SIZE];
-    <span style="color:#66d9ef">while</span> (fgets(buffer, BUF_SIZE, file))
-        ...
-</code></pre></div><p>or</p>
-<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-c++" data-lang="c++">    std<span style="color:#f92672">::</span>array<span style="color:#f92672">&lt;</span><span style="color:#66d9ef">char</span>, BUF_SIZE<span style="color:#f92672">&gt;</span> buffer;
-    <span style="color:#66d9ef">while</span> (fgets(buffer.data(), buffer.size(), file))
-        ...
-</code></pre></div><p>In C++ we usually have data types that provide both buffer and size, so wouldn&rsquo;t it be nice to pass only one argument?</p>
-<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-c++" data-lang="c++">    std<span style="color:#f92672">::</span>array<span style="color:#f92672">&lt;</span><span style="color:#66d9ef">char</span>, BUF_SIZE<span style="color:#f92672">&gt;</span> buffer;
-    <span style="color:#66d9ef">while</span> (my_fgets(buffer, file))
-        ...
-</code></pre></div><p>Indeed, it would!</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-c++" data-lang="c++"><span style="display:flex;"><span><span style="color:#66d9ef">char</span> <span style="color:#f92672">*</span>fgets(<span style="color:#66d9ef">char</span> <span style="color:#f92672">*</span>str, <span style="color:#66d9ef">int</span> n, FILE <span style="color:#f92672">*</span>stream)
+</span></span></code></pre></div><p>If we&rsquo;re going to call it, we&rsquo;ll have something like</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-c++" data-lang="c++"><span style="display:flex;"><span>    <span style="color:#66d9ef">char</span> buffer[BUF_SIZE];
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">while</span> (fgets(buffer, BUF_SIZE, file))
+</span></span><span style="display:flex;"><span>        ...
+</span></span></code></pre></div><p>or</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-c++" data-lang="c++"><span style="display:flex;"><span>    std<span style="color:#f92672">::</span>array<span style="color:#f92672">&lt;</span><span style="color:#66d9ef">char</span>, BUF_SIZE<span style="color:#f92672">&gt;</span> buffer;
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">while</span> (fgets(buffer.data(), buffer.size(), file))
+</span></span><span style="display:flex;"><span>        ...
+</span></span></code></pre></div><p>In C++ we usually have data types that provide both buffer and size, so wouldn&rsquo;t it be nice to pass only one argument?</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-c++" data-lang="c++"><span style="display:flex;"><span>    std<span style="color:#f92672">::</span>array<span style="color:#f92672">&lt;</span><span style="color:#66d9ef">char</span>, BUF_SIZE<span style="color:#f92672">&gt;</span> buffer;
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">while</span> (my_fgets(buffer, file))
+</span></span><span style="display:flex;"><span>        ...
+</span></span></code></pre></div><p>Indeed, it would!</p>
 <p><em>If you felt cringe at the very mention of such an idea, you may have it even worse further. Consider yourself warned.</em></p>
 <h1 id="problem-statement">
     <a href="#problem-statement" class="anchor">
@@ -183,12 +183,12 @@
 <p>Ok, so let&rsquo;s formulate what we&rsquo;re trying to achieve here:</p>
 <p>For a function <code>F</code> get a wrapper function <code>expand_containers&lt;F&gt;</code> that will forward it&rsquo;s arguments to <code>F</code> &ldquo;as-is&rdquo;, unless those are containers - those need to be expanded into two arguments, pointer and size.</p>
 <p>Expressed as a C++ template, it&rsquo;d look like</p>
-<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-c++" data-lang="c++">    <span style="color:#66d9ef">template</span><span style="color:#f92672">&lt;</span><span style="color:#66d9ef">auto</span> func, <span style="color:#66d9ef">typename</span>... TActuals<span style="color:#f92672">&gt;</span>
-    <span style="color:#66d9ef">auto</span> expand_containers(TActuals<span style="color:#f92672">&amp;&amp;</span>... args) 
-    {
-        <span style="color:#66d9ef">return</span> <span style="color:#a6e22e">func</span>(expand_or_forward(std<span style="color:#f92672">::</span>forward<span style="color:#f92672">&lt;</span>TActuals<span style="color:#f92672">&gt;</span>(args)...));
-    }
-</code></pre></div><h1 id="will-the-code-above-work">
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-c++" data-lang="c++"><span style="display:flex;"><span>    <span style="color:#66d9ef">template</span><span style="color:#f92672">&lt;</span><span style="color:#66d9ef">auto</span> func, <span style="color:#66d9ef">typename</span>... TActuals<span style="color:#f92672">&gt;</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">auto</span> expand_containers(TActuals<span style="color:#f92672">&amp;&amp;</span>... args) 
+</span></span><span style="display:flex;"><span>    {
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">return</span> <span style="color:#a6e22e">func</span>(expand_or_forward(std<span style="color:#f92672">::</span>forward<span style="color:#f92672">&lt;</span>TActuals<span style="color:#f92672">&gt;</span>(args)...));
+</span></span><span style="display:flex;"><span>    }
+</span></span></code></pre></div><h1 id="will-the-code-above-work">
     <a href="#will-the-code-above-work" class="anchor">
         <svg class="icon" aria-hidden="true" focusable="false" height="16" version="1.1" viewBox="0 0 16 16" width="16">
             <path fill-rule="evenodd"
@@ -201,32 +201,32 @@
 <p>No, it won&rsquo;t: we cannot make a function expand that will convert one type into two.</p>
 <p>But we don&rsquo;t need to expand <em>types</em>! We can expand the <em>values</em> of container arguments into  tuples, and concatenate those tuples (using <code>std::tuple_cat</code>) with the values of other arguments. Then we can simply call the function with that tuple as an argument, using <code>std::apply</code>.</p>
 <p>So, the code will look like this</p>
-<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-c++" data-lang="c++">    <span style="color:#66d9ef">template</span><span style="color:#f92672">&lt;</span><span style="color:#66d9ef">auto</span> func, <span style="color:#66d9ef">typename</span>... TActuals<span style="color:#f92672">&gt;</span>
-    <span style="color:#66d9ef">auto</span> expand_containers(TActuals<span style="color:#f92672">&amp;&amp;</span>... args) 
-    {
-        <span style="color:#66d9ef">auto</span> tuple <span style="color:#f92672">=</span> std<span style="color:#f92672">::</span>tuple_cat(expand_or_forward(std<span style="color:#f92672">::</span>forward<span style="color:#f92672">&lt;</span>TActuals<span style="color:#f92672">&gt;</span>(args)...));
-        <span style="color:#66d9ef">return</span> std<span style="color:#f92672">::</span>apply(func, std<span style="color:#f92672">::</span>move(tuple));
-    }
-</code></pre></div><p>Now we only need to define <code>expand_or_forward</code>!</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-c++" data-lang="c++"><span style="display:flex;"><span>    <span style="color:#66d9ef">template</span><span style="color:#f92672">&lt;</span><span style="color:#66d9ef">auto</span> func, <span style="color:#66d9ef">typename</span>... TActuals<span style="color:#f92672">&gt;</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">auto</span> expand_containers(TActuals<span style="color:#f92672">&amp;&amp;</span>... args) 
+</span></span><span style="display:flex;"><span>    {
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">auto</span> tuple <span style="color:#f92672">=</span> std<span style="color:#f92672">::</span>tuple_cat(expand_or_forward(std<span style="color:#f92672">::</span>forward<span style="color:#f92672">&lt;</span>TActuals<span style="color:#f92672">&gt;</span>(args)...));
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">return</span> std<span style="color:#f92672">::</span>apply(func, std<span style="color:#f92672">::</span>move(tuple));
+</span></span><span style="display:flex;"><span>    }
+</span></span></code></pre></div><p>Now we only need to define <code>expand_or_forward</code>!</p>
 <p>First of all, the version for &ldquo;normal&rdquo; values:</p>
-<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-c++" data-lang="c++"><span style="color:#66d9ef">template</span><span style="color:#f92672">&lt;</span><span style="color:#66d9ef">typename</span> TScalar<span style="color:#f92672">&gt;</span>
-std<span style="color:#f92672">::</span>tuple<span style="color:#f92672">&lt;</span>TScalar<span style="color:#f92672">&gt;</span> expand_or_forward(TScalar<span style="color:#f92672">&amp;&amp;</span> t)
-{
-    <span style="color:#66d9ef">return</span> { std<span style="color:#f92672">::</span>forward<span style="color:#f92672">&lt;</span>TScalar<span style="color:#f92672">&gt;</span>(t) };
-}
-</code></pre></div><p>then for containers:</p>
-<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-c++" data-lang="c++"><span style="color:#66d9ef">template</span><span style="color:#f92672">&lt;</span><span style="color:#66d9ef">typename</span> TContainer, <span style="color:#66d9ef">typename</span> TData <span style="color:#f92672">=</span> <span style="color:#66d9ef">decltype</span>(TContainer{}<span style="color:#f92672">::</span>data())<span style="color:#f92672">&gt;</span>
-std<span style="color:#f92672">::</span>tuple<span style="color:#f92672">&lt;</span>TData, size_t<span style="color:#f92672">&gt;</span> expand_or_forward(TContainer<span style="color:#f92672">&amp;</span> t)
-{
-    <span style="color:#66d9ef">return</span>  { t.data(), t.size() };
-}
-</code></pre></div><p>And why should&rsquo;t we define it for C-style arrays of known size?</p>
-<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-c++" data-lang="c++"><span style="color:#66d9ef">template</span><span style="color:#f92672">&lt;</span><span style="color:#66d9ef">typename</span> TItem, size_t N<span style="color:#f92672">&gt;</span>
-std<span style="color:#f92672">::</span>tuple<span style="color:#f92672">&lt;</span>TItem<span style="color:#f92672">*</span>, size_t<span style="color:#f92672">&gt;</span> expand_or_forward(TItem (<span style="color:#f92672">&amp;</span>array)[N])
-{
-    <span style="color:#66d9ef">return</span> { array, N };
-}
-</code></pre></div><p>That&rsquo;s all!</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-c++" data-lang="c++"><span style="display:flex;"><span><span style="color:#66d9ef">template</span><span style="color:#f92672">&lt;</span><span style="color:#66d9ef">typename</span> TScalar<span style="color:#f92672">&gt;</span>
+</span></span><span style="display:flex;"><span>std<span style="color:#f92672">::</span>tuple<span style="color:#f92672">&lt;</span>TScalar<span style="color:#f92672">&gt;</span> expand_or_forward(TScalar<span style="color:#f92672">&amp;&amp;</span> t)
+</span></span><span style="display:flex;"><span>{
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">return</span> { std<span style="color:#f92672">::</span>forward<span style="color:#f92672">&lt;</span>TScalar<span style="color:#f92672">&gt;</span>(t) };
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></div><p>then for containers:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-c++" data-lang="c++"><span style="display:flex;"><span><span style="color:#66d9ef">template</span><span style="color:#f92672">&lt;</span><span style="color:#66d9ef">typename</span> TContainer, <span style="color:#66d9ef">typename</span> TData <span style="color:#f92672">=</span> <span style="color:#66d9ef">decltype</span>(TContainer{}<span style="color:#f92672">::</span>data())<span style="color:#f92672">&gt;</span>
+</span></span><span style="display:flex;"><span>std<span style="color:#f92672">::</span>tuple<span style="color:#f92672">&lt;</span>TData, size_t<span style="color:#f92672">&gt;</span> expand_or_forward(TContainer<span style="color:#f92672">&amp;</span> t)
+</span></span><span style="display:flex;"><span>{
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">return</span>  { t.data(), t.size() };
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></div><p>And why should&rsquo;t we define it for C-style arrays of known size?</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-c++" data-lang="c++"><span style="display:flex;"><span><span style="color:#66d9ef">template</span><span style="color:#f92672">&lt;</span><span style="color:#66d9ef">typename</span> TItem, size_t N<span style="color:#f92672">&gt;</span>
+</span></span><span style="display:flex;"><span>std<span style="color:#f92672">::</span>tuple<span style="color:#f92672">&lt;</span>TItem<span style="color:#f92672">*</span>, size_t<span style="color:#f92672">&gt;</span> expand_or_forward(TItem (<span style="color:#f92672">&amp;</span>array)[N])
+</span></span><span style="display:flex;"><span>{
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">return</span> { array, N };
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></div><p>That&rsquo;s all!</p>
 <h1 id="performance">
     <a href="#performance" class="anchor">
         <svg class="icon" aria-hidden="true" focusable="false" height="16" version="1.1" viewBox="0 0 16 16" width="16">
@@ -335,7 +335,7 @@ std<span style="color:#f92672">::</span>tuple<span style="color:#f92672">&lt;</s
 
         
     </section>
-    <script defer src="/ts/features.c81551cd4dbef120af278f16966a41142c02be9ff5d6a669be09820fbf047456.js" 
+    <script defer src="/ts/features.2f98c2f5215583b54b0a8bd7bdb10411467f4fee386a61e03ca3ddf376273fc4.js" 
     data-enable-footnotes="true"
     ></script>
 </footer>

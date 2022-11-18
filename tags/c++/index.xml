@@ -13,11 +13,11 @@
       <pubDate>Wed, 19 Jan 2022 19:00:16 -0800</pubDate>
       
       <guid>http://elder-george.github.io/post/format-string/</guid>
-      <description>What&amp;#39;s the goal?Basically, to be able to write
+      <description>What&amp;#39;s the goal?Basically, to be able to write
 auto s = format(&amp;#34;%0 %1&amp;#34;, &amp;#34;Hello&amp;#34;, &amp;#34;World&amp;#34;); and get Hello World as a result.
 And only allocate memory once, enough to fit the final result.,
-What&amp;#39;s the point?&amp;ldquo;Why not to use …
-  …printf?&amp;rdquo; - it sucks, really. Non-type safe, without validation (unless your compiler built special support for it… strangely, all of them did… huh), needs to extract C-style string from C++ strings and string_views etc.</description>
+What&amp;#39;s the point?&amp;ldquo;Why not to use …
+…printf?&amp;rdquo; - it sucks, really. Non-type safe, without validation (unless your compiler built special support for it… strangely, all of them did… huh), needs to extract C-style string from C++ strings and string_views etc.</description>
     </item>
     
     <item>
@@ -26,8 +26,8 @@ And only allocate memory once, enough to fit the final result.,
       <pubDate>Sat, 06 Nov 2021 19:14:50 -0700</pubDate>
       
       <guid>http://elder-george.github.io/post/safe-buffers/</guid>
-      <description>DisclaimerThis is merely an exercise. While it may work in production, your colleagues may be not so happy with it.
-Passing C&amp;#43;&amp;#43; containers into C-style functionsWhen using libraries with C-style interfaces, we often see functions that accept an array of data, or a buffer as two parameters: pointer to the first element and length.
+      <description>DisclaimerThis is merely an exercise. While it may work in production, your colleagues may be not so happy with it.
+Passing C&amp;#43;&amp;#43; containers into C-style functionsWhen using libraries with C-style interfaces, we often see functions that accept an array of data, or a buffer as two parameters: pointer to the first element and length.
 Classic example is
 char *fgets(char *str, int n, FILE *stream) If we&amp;rsquo;re going to call it, we&amp;rsquo;ll have something like</description>
     </item>
@@ -51,11 +51,12 @@ After playing with performance of the standard (and semi-standard) hashtables, I
       <guid>http://elder-george.github.io/post/hashtables/</guid>
       <description>Not long ago I stumbled upon this post discussing different approaches to string interning.
 The author did 4 implementations: (quote)
-   A control in pure C,
-  a Trie in pure C,
-  a hand rolled hash table in pure C,
-  and an std::unordered_map (hash table) wrapper, in C++.
-   The benchmarked it and found, among other things, that the C++ version was the slowest of them all.</description>
+A control in pure C,
+a Trie in pure C,
+a hand rolled hash table in pure C,
+and an std::unordered_map (hash table) wrapper, in C++.
+The benchmarked it and found, among other things, that the C++ version was the slowest of them all.
+This intrigued me. True, C++ standard defines std::unordered_map in a way that it can only use chaining, and that&amp;rsquo;s usually is inferior performance-wise to open-addressing hashtables, but there was no way it could be that bad.</description>
     </item>
     
   </channel>
